@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.26';
+$VERSION = '0.27';
 
 sub new {
     my $class = shift;
@@ -3212,15 +3212,29 @@ package SWF::Element::TAGSTREAM;
 
 use SWF::Parser;
 
-@SWF::Element::TAGSTREAM::ISA = ('SWF::BinStream::Read');
-
-sub configure {
-    my ($self, $data) = @_;
-
-    $self->add_stream($data);
+sub new {
+    my $self;
+    bless \$self, shift;
 }
 
-sub dumper {}
+sub configure {
+    my ($self, $data, $version) = @_;
+
+    $$self = SWF::BinStream::Read->new($data, undef, $version);
+    $self;
+}
+
+sub dumper {
+    my ($self, $outputsub)=@_;
+
+    $outputsub||=\&SWF::Element::_default_output;
+
+    &$outputsub('undef', 0);
+}
+
+sub defined {
+    defined ${+shift};
+}
 
 sub parse {
     my ($self, $p, $callback) = @_;
@@ -3230,7 +3244,8 @@ sub parse {
     } elsif (lc($p) ne 'callback' or ref($callback) ne 'CODE') {
       Carp::croak "Callback subroutine is needed to parse tags of sprite";
     }
-    my $parser = SWF::Parser->new('tag-callback' => $callback, stream => $self, header => 'no');
+    print $$self->Version;
+    my $parser = SWF::Parser->new('tag-callback' => $callback, stream => $$self, header => 'no');
     $parser->parse;
 }
 
@@ -3251,7 +3266,7 @@ sub shallow_unpack {
 
     $self->SpriteID->unpack($stream);
     $self->FrameCount($stream->get_UI16);
-    $self->TagStream($stream->get_string($self->Length - 4));
+    $self->TagStream($stream->get_string($self->Length - 4), $stream->Version);
 }
 
 sub _pack {

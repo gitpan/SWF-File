@@ -1,5 +1,10 @@
 Revision history for Perl extension SWF::*.
 
+0.27 Sun Nov 30 00:22:55 2003
+       SWF::Element
+	- SWF version was not set to TAGSTREAM. fixed.
+	- Added 'dumper' method for TAGSTREAM.
+
 0.26 Sat Nov 29 18:30:00 2003
        SWF::Element
 	- '$' and '@' are not escaped correctly in dumper method. Fixed.
