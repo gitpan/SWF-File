@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.31';
+$VERSION = '0.32';
 
 sub new {
     my $class = shift;
@@ -428,6 +428,10 @@ _create_class('ASSET', '',
 	      ID     => 'ID',
 	      Name   => 'STRING');
 _create_pack('ASSET');
+_create_class('REGISTERPARAM', '',
+	      Register  => '$UI8',
+	      ParamName => 'STRING');
+_create_pack('REGISTERPARAM');
 
 ##########
 
@@ -696,6 +700,8 @@ _create_array_class('ASSETARRAY',      'Array3', 'ASSET');
 _create_array_class('TAGARRAY',        'Array',  'Tag',
                     sub {},
                     sub {$_[1]->tag_name eq 'End' && ((push @{$_[0]}, $_[1]),1)});
+_create_array_class('REGISTERPARAMARRAY', 'Array', 'REGISTERPARAM',
+                    sub {});
 
 ##########
 
@@ -1212,7 +1218,7 @@ sub pack {
     } elsif ($style==0x10 or $style==0x12) {
 	$self->GradientMatrix->pack($stream);
 	$self->Gradient->pack($stream);
-    } elsif ($style==0x40 or $style==0x41) {
+    } elsif ($style>=0x40 or $style<=0x43) {
 	$self->BitmapID->pack($stream);
 	$self->BitmapMatrix->pack($stream);
     }
@@ -1226,7 +1232,7 @@ sub unpack {
     } elsif ($style==0x10 or $style==0x12) {
 	$self->GradientMatrix->unpack($stream);
 	$self->Gradient->unpack($stream);
-    } elsif ($style==0x40 or $style==0x41) {
+    } elsif ($style>=0x40 or $style<=0x43) {
 	$self->BitmapID->unpack($stream);
 	$self->BitmapMatrix->unpack($stream);
     }
@@ -1885,8 +1891,8 @@ _create_tag('SoundStreamBlock', 19, '',
 _create_tag('SoundStreamHead', 18, '',
 
 	    Flags                  => '$UI16',
-	    StreamSoundSampleCount => '$UI16');
-_create_pack('SoundStreamHead');
+	    StreamSoundSampleCount => '$UI16',
+	    LatencySeek            => '$SI16');
 
 _create_tag('SoundStreamHead2', 45, 'SoundStreamHead',
 
@@ -1965,6 +1971,19 @@ _create_tag('EnableDebugger2', 64, '',
 	    Reserved => '$UI16',
 	    Password => 'STRING' );
 _create_pack('EnableDebugger2');
+
+_create_tag('ScriptLimits', 65, '',
+
+	    MaxRecurtionDepth    => '$UI16',
+	    ScriptTimeoutSeconds => '$UI16' );
+_create_pack('ScriptLimits');
+
+_create_tag('SetTabIndex', 66, '',
+
+	    Depth    => 'Depth',
+	    TabIndex => '$UI16' );
+_create_pack('SetTabIndex');
+
 
 _create_tag('End', 0, '');
 _create_pack('End');
@@ -2156,7 +2175,7 @@ sub pack {
 	$self->StartGradientMatrix->pack($stream);
 	$self->EndGradientMatrix->pack($stream);
 	$self->Gradient->pack($stream);
-    } elsif ($style==0x40 or $style==0x41) {
+    } elsif ($style>=0x40 or $style<=0x43) {
 	$self->BitmapID->pack($stream);
 	$self->StartBitmapMatrix->pack($stream);
 	$self->EndBitmapMatrix->pack($stream);
@@ -2173,7 +2192,7 @@ sub unpack {
 	$self->StartGradientMatrix->unpack($stream);
 	$self->EndGradientMatrix->unpack($stream);
 	$self->Gradient->unpack($stream);
-    } elsif ($style==0x40 or $style==0x41) {
+    } elsif ($style<=0x40 or $style<=0x43) {
 	$self->BitmapID->unpack($stream);
 	$self->StartBitmapMatrix->unpack($stream);
 	$self->EndBitmapMatrix->unpack($stream);
@@ -2633,7 +2652,7 @@ sub _pack {
 
 {
     my $bit = 0;
-    for my $f (qw/ Bold Italic WideCodes WideOffsets ANSI Reserved ShiftJIS HasLayout /) {
+    for my $f (qw/ Bold Italic WideCodes WideOffsets ANSI SmallText ShiftJIS HasLayout /) {
       SWF::Element::_create_flag_accessor("FontFlags$f", 'FontFlags', $bit++);
     }
 }
@@ -2821,7 +2840,7 @@ sub _pack {
 
 {
     my $bit = 1;
-    for my $f (qw/ WideCodes Bold Italic ANSI ShiftJIS/) {
+    for my $f (qw/ WideCodes Bold Italic ANSI ShiftJIS SmallText/) {
       SWF::Element::_create_flag_accessor("FontFlags$f", 'FontFlags', $bit++);
     }
 }
@@ -3172,23 +3191,6 @@ sub _pack {
 
 package SWF::Element::Tag::SoundStreamHead;
 
-{
-    my %flags = (StreamSoundCompression => [12, 4],
-		 StreamSoundRate        => [10, 2],
-		 StreamSoundSize        => [ 9, 1],
-		 StreamSoundType        => [ 8, 1],
-		 PlaybackSoundRate      => [ 2, 2],
-		 PlaybackSoundSize      => [ 1, 1],
-		 PlaybackSoundType      => [ 0, 1]);
-    for my $f (keys(%flags)) {
-      SWF::Element::_create_flag_accessor($f, 'Flags', @{$flags{$f}});
-    }
-}
-
-##########
-
-package SWF::Element::Tag::SoundStreamHead2;
-
 sub _unpack {
     my ($self, $stream)=@_;
 
@@ -3203,6 +3205,19 @@ sub _pack {
     $stream->set_UI16($self->Flags);
     $stream->set_UI16($self->StreamSoundSampleCount);
     $stream->set_SI16($self->LatencySeek) if $self->StreamSoundCompression == 2;
+}
+
+{
+    my %flags = (StreamSoundCompression => [12, 4],
+		 StreamSoundRate        => [10, 2],
+		 StreamSoundSize        => [ 9, 1],
+		 StreamSoundType        => [ 8, 1],
+		 PlaybackSoundRate      => [ 2, 2],
+		 PlaybackSoundSize      => [ 1, 1],
+		 PlaybackSoundType      => [ 0, 1]);
+    for my $f (keys(%flags)) {
+      SWF::Element::_create_flag_accessor($f, 'Flags', @{$flags{$f}});
+    }
 }
 
 ####  Sprites  ####
@@ -3476,6 +3491,9 @@ our %actiontagtonum=(
     ActionStartDrag                => 0x27,
     ActionEndDrag                  => 0x28,
     ActionStringLess               => 0x29,
+    ActionThrow                    => 0x2a,
+    ActionCastOp                   => 0x2b,
+    ActionImplementsOp             => 0x2c,
     ActionRandomNumber             => 0x30,
     ActionMBStringLength           => 0x31,
     ActionCharToAscii              => 0x32,
@@ -3521,8 +3539,8 @@ our %actiontagtonum=(
     ActionStrictEquals             => 0x66,
     ActionGreater                  => 0x67,
     ActionStringGreater            => 0x68,
-    ActionCall                     => 0x9e,
-
+    ActionExtends                  => 0x69,
+#    ActionCall                     => 0x9e,
 );
 
 our %actionnumtotag= reverse %actiontagtonum;
@@ -3580,7 +3598,7 @@ sub _action_class {
     if (!$name and $num >= 0x80) {
 	$name = 'ActionUnknown';
     }
-    if ($num >=0x80 and $num != 0x9e) {
+    if ($num >=0x80) {
 	return "SWF::Element::ACTIONRECORD::$name";
     } else {
 	return "SWF::Element::ACTIONRECORD";
@@ -3620,7 +3638,8 @@ sub pack {
 }
 
 sub _unpack {
-  Carp::confess "Unexpected _unpack";
+    my $self = shift;
+  Carp::confess "Unexpected _unpack for ".ref($self)." ".$self->Tag;
 }
 
 sub _pack {
@@ -3673,6 +3692,8 @@ SUB_START
     }
 }
 
+sub _set_label {}
+
 @SWF::Element::ACTIONRECORD::_HasSkipCount::ISA=('SWF::Element::ACTIONRECORD');
 @SWF::Element::ACTIONRECORD::_HasOffset::ISA=('SWF::Element::ACTIONRECORD');
 @SWF::Element::ACTIONRECORD::_HasCodeSize::ISA=('SWF::Element::ACTIONRECORD::_HasOffset');
@@ -3695,6 +3716,7 @@ _create_action_tag('Jump',          0x99, 'HasOffset',
 _create_action_tag('GetURL2',       0x9a, undef, Method      => '$UI8');
 _create_action_tag('If',            0x9d, 'HasOffset',
                    BranchOffset=> '$SI16');
+_create_action_tag('Call',          0x9e, undef);
 _create_action_tag('GotoFrame2',    0x9F, undef, PlayFlag    => '$UI8');
 _create_action_tag('ConstantPool',  0x88, undef,
 		   ConstantPool => 'Array::STRINGARRAY');
@@ -3705,6 +3727,20 @@ _create_action_tag('DefineFunction',   0x9b, 'HasCodeSize',
 _create_action_tag('StoreRegister', 0x87, undef, Register   => '$UI8');
 _create_action_tag('With',          0x94, 'HasCodeSize',
                    CodeSize => '$UI16');
+
+_create_action_tag('DefineFunction2', 0x8e, 'HasCodeSize',
+		   FunctionName  => 'STRING',
+                   RegisterCount => '$UI8',
+                   Flags         => '$UI16',
+                   Parameters    => 'Array::REGISTERPARAMARRAY',
+                   CodeSize      => '$UI16');
+
+_create_action_tag('Try', 0x8f, undef,
+                   TrySize       => '$UI16',
+                   CatchSize     => '$UI16',
+                   FinallySize   => '$UI16',
+                   CatchName     => 'STRING',
+                   CatchRegister => '$UI8');
 
 ##########
 
@@ -3775,9 +3811,7 @@ sub dumper {
 
     my $val = $self->value;
 
-    $val =~ s/([\\\$\@\"])/\\$1/gs;
-    $val =~ s/([\x00-\x1F\x80-\xFF])/sprintf('\\x%.2X', ord($1))/ges;
-    $val = "\"$val\"" unless $val =~ /^\d+(?:\.\d+)?$/;
+    $val = "\"$val\"" if $val !~ /^-?[.\d]/;
 
     &$outputsub(ref($self)."->new($val)", 0);
 }
@@ -3819,6 +3853,20 @@ sub pack {
 
 sub _unpack {
   SWF::Element::STRING::unpack(@_);
+}
+
+sub dumper {
+    my ($self, $outputsub, $indent)=@_;
+
+    $outputsub||=\&SWF::Element::_default_output;
+
+    my $val = $self->value;
+
+    $val =~ s/([\\\$\@\"])/\\$1/gs;
+    $val =~ s/([\x00-\x1F\x80-\xFF])/sprintf('\\x%.2X', ord($1))/ges;
+    $val = "\"$val\"";
+
+    &$outputsub(ref($self)."->new($val)", 0);
 }
 
 #########
@@ -4050,11 +4098,15 @@ sub pack {
 
 {
     my $bit = 0;
-    for my $f (qw/Load EnterFrame Unload MouseMove MouseDown MouseUp KeyDown KeyUp Data Initialize Press Release ReleaseOutside RollOver RollOut DragOver/) {
+    for my $f 
+	( qw/ Load           EnterFrame  Unload     MouseMove
+	      MouseDown      MouseUp     KeyDown    KeyUp
+	      Data           Initialize  Press      Release
+	      ReleaseOutside RollOver    RollOut    DragOver
+	      DragOut        KeyPress    Construct
+	  / ) {
       SWF::Element::_create_flag_accessor("ClipEvent$f", 'EventFlags', $bit++);
     }
-  SWF::Element::_create_flag_accessor("ClipEventDragOut",  'EventFlags', 16);
-  SWF::Element::_create_flag_accessor("ClipEventKeyPress", 'EventFlags', 17);
 }
 
 ##########
@@ -4066,17 +4118,14 @@ sub pack {
     my $stream = $_[0];
 
     # Add ActionEnd if there is not.
+
     push @$self, SWF::Element::ACTIONRECORD->new(Tag=>'ActionEnd') if $self->[-1]->Tag != 0;
 
-    $self->_write_actionstream($stream, $self->_label_resolve(@_));
-}
-
-sub _label_resolve {
-    my $self = shift;
-    my $stream = shift;
     my $actionstream = SWF::BinStream::Write->new($stream->Version);
     my %labels;
     my $count = 0;
+
+    # Keep label positions.
 
     for my $element (@$self) {
 	$labels{$element->LocalLabel} = [$count, $actionstream->tell] if ($element->LocalLabel);
@@ -4086,42 +4135,27 @@ sub _label_resolve {
 
     my %marks = $actionstream->mark;
     my @replace;
+
     for my $label (keys %marks) {
 	(my $label1 = $label)=~s/\#.*$//;   # inner local label
       Carp::croak "Can't find LocalLabel '$label1' " unless defined $labels{$label1};
-	my ($dstcount, $dsttell) = @{$labels{$label1}};
+
 	while(my ($tell, $obj) = splice(@{$marks{$label}}, 0, 2)) {
-	    if ($obj->[0] eq 'Offset') {
-		my $offset = $dsttell-$tell-2;
-	      Carp::croak "Can't set negative offset for ".ref($obj->[1]) if $offset < 0 and $obj->[1]->isa('SWF::Element::ACTIONRECORD::_HasCodeSize');
-		my $data = CORE::pack('v', $offset);
-		if ($tell % 1024 == 1023) {
-		    my @data = split //, $data;
-		    push @{$replace[$tell>>10]}, [1023, 1, $data[0]];
-		    push @{$replace[($tell>>10)+1]}, [0, 1, $data[1]];
-		} else {
-		    push @{$replace[$tell>>10]}, [$tell % 1024, 2, $data];
-		}
-	    } elsif ($obj->[0] eq 'SkipCount') {
-		my $count = 1;
-		for my $element (@$self) {
-		    last if $element eq $obj->[1];
-		    $count++;
-		}
-	      Carp::croak "SkipCount of ".ref($obj->[1])." cannot refer backward " if $dstcount < $count;
-		push @{$replace[$tell>>10]}, [$tell % 1024, 1, CORE::pack('C', $dstcount-$count)];
+	    my ($data, $length) = $obj->_resolve_label($tell, $labels{$label1}, $self);
+
+	    if ($length >= 2 and $tell % 1024 == 1023) {
+		my @data = split //, $data;
+		push @{$replace[$tell>>10]}, [1023, 1, $data[0]];
+		push @{$replace[($tell>>10)+1]}, [0, 1, $data[1]];
+	    } else {
+		push @{$replace[$tell>>10]}, [$tell % 1024, $length, $data];
 	    }
 	}
     }
-    return ($actionstream, \@replace);
-}
-
-sub _write_actionstream {
-    my ($self, $stream, $actionstream, $replace) = @_;
 
     while($actionstream->Length > 0) {
 	my $buf = $actionstream->flush_stream(1024);
-	my $replace1 = shift @$replace;
+	my $replace1 = shift @replace;
 	while (my $replace2 = shift @$replace1) {
 	    my ($pos, $len, $r) = @$replace2;
 	    substr($buf, $pos, $len) = $r;
@@ -4130,58 +4164,47 @@ sub _write_actionstream {
     }
 }
 
-sub unpack {
-    my ($self, $stream, $len) = @_;
-    my @byteoffset;
-    my $start = $stream->tell;
+{
+    my $label;
 
-    while(!defined $len or $stream->tell - $start < $len) {
-	push @byteoffset, $stream->tell-$start;
-	my $element = $self->new_element;
-	$element->unpack($stream);
-	push @$self, $element;
-	last if !defined $len and $element->Tag == 0;
-    }
-    my $label = 'A';
-    for (my $i = 0; $i < @byteoffset; $i++) {
-	my $action = $self->[$i];
-	if ($action->isa('SWF::Element::ACTIONRECORD::_HasSkipCount')) {
-	    my $skip = $action->SkipCount;
-	    my $dst = $self->[$i+$skip+1];
-	    if (my $l = $dst->LocalLabel) {
-		$action->SkipCount("$l#$skip");
-	    } else {
-		$action->SkipCount("$label#$skip");
-		$dst->LocalLabel($label);
-		$label++;
-	    }
-	} elsif($action->isa('SWF::Element::ACTIONRECORD::_HasOffset')) {
-	    my $offset = $action->_Offset;
-	    my $set = $byteoffset[$i+1];
-	    my $dst = $set;
-	    my $j = $i+1;
-	    if ($offset < 0) {
-		while ($j>=0 and ($dst-$set) > $offset) {
-		    $j--;
-		    $dst = $byteoffset[$j];
-		}
-	    } else {
-		while ($j<@byteoffset and ($dst-$set) < $offset) {
-		    $j++;
-		    $dst = $byteoffset[$j];
-		}
-	    }
-	    if ($dst-$set == $offset) {
-		if (my $l = $self->[$j]->LocalLabel) {
-		    $action->_Offset("$l#$offset");
-		} else {
-		    $action->_Offset("$label#$offset");
-		    $self->[$j]->LocalLabel($label);
-		    $label++;
-		}
-	    }
+    sub unpack {
+	my ($self, $stream, $len) = @_;
+	my @byteoffset;
+	my $start = $stream->tell;
+	
+	while(!defined $len or $stream->tell - $start < $len) {
+	    push @byteoffset, $stream->tell-$start;
+	    my $element = $self->new_element;
+	    $element->unpack($stream);
+	    push @$self, $element;
+	    last if !defined $len and $element->Tag == 0;
+	}
+	$label = 'A';
+	for (my $i = 0; $i < @byteoffset; $i++) {
+	    $self->[$i]->_set_label($i, $self, \@byteoffset);
 	}
     }
+
+    sub _get_label {
+	$label++;
+    }
+}
+
+##########
+
+package SWF::Element::ACTIONRECORD::_HasSkipCount;
+
+sub _set_label {
+    my ($self, $pos, $actionstream) = @_;
+    my $skip = $self->SkipCount;
+    my $dst = $actionstream->[$pos + $skip+1];
+
+    my $l = $dst->LocalLabel;
+    unless ($l) {
+	$l = $actionstream->_get_label;
+	$dst->LocalLabel($l);
+    }
+    $self->SkipCount("$l#$skip");
 }
 
 ##########
@@ -4194,9 +4217,8 @@ sub _pack {
     $stream->set_UI16($self->Frame);
     my $skip = $self->SkipCount;
 
-
     if ($skip =~ /^[^\d]/) {
-	$stream->mark($skip, ['SkipCount', $self]);
+	$stream->mark($skip, bless [$self], 'SWF::Element::_Label::SkipCount');
 	$stream->set_UI8(0);
     } else {
 	$stream->set_UI8($skip);
@@ -4212,10 +4234,41 @@ sub _pack {
     my $skip = $self->SkipCount;
 
     if ($skip =~ /^[^\d]/) {
-	$stream->mark($skip, ['SkipCount', $self]);
+	$stream->mark($skip, bless [$self], 'SWF::Element::_Label::SkipCount');
 	$stream->set_UI8(0);
     } else {
 	$stream->set_UI8($skip);
+    }
+}
+
+##########
+
+package SWF::Element::ACTIONRECORD::_HasOffset;
+
+sub _set_label {
+    my ($self, $pos, $actionstream, $byteoffset) = @_;
+    my $offset = $self->_Offset;
+    my $j = $pos+1;
+    my $set = $byteoffset->[$j];
+    my $dst = $set;
+    if ($offset < 0) {
+	while ($j>=0 and ($dst-$set) > $offset) {
+	    $j--;
+	    $dst = $byteoffset->[$j];
+	}
+    } else {
+	while ($j<@$byteoffset and ($dst-$set) < $offset) {
+	    $j++;
+	    $dst = $byteoffset->[$j];
+	}
+    }
+    if ($dst-$set == $offset) {
+	my $l = $actionstream->[$j]->LocalLabel;
+	unless ($l) {
+	    $l = $actionstream->_get_label;
+	    $actionstream->[$j]->LocalLabel($l);
+	}
+	$self->_Offset("$l#$offset");
     }
 }
 
@@ -4228,7 +4281,7 @@ sub _pack {
     my $offset = $self->BranchOffset;
 
     if ($offset =~ /^[^\d\-]/) {
-	$stream->mark($offset, ['Offset', $self]);
+	$stream->mark($offset, bless [$self], 'SWF::Element::_Label::Offset');
 	$stream->set_SI16(0);
     } else {
 	$stream->set_SI16($offset);
@@ -4238,6 +4291,14 @@ sub _pack {
 *SWF::Element::ACTIONRECORD::ActionJump::_Offset = \&BranchOffset;
 *SWF::Element::ACTIONRECORD::ActionIf::_Offset = \&BranchOffset;
 *SWF::Element::ACTIONRECORD::ActionIf::_pack = \&_pack;
+
+##########
+
+package SWF::Element::ACTIONRECORD::ActionGetURL2;
+
+SWF::Element::_create_flag_accessor('SendVarsMethod', 'Method', 0, 2);
+SWF::Element::_create_flag_accessor('LoadTargetFlag', 'Method', 6);
+SWF::Element::_create_flag_accessor('LoadVariablesFlag', 'Method', 7);
 
 ##########
 
@@ -4251,8 +4312,8 @@ sub _pack {
 
     my $offset = $self->CodeSize;
 
-    if ($offset =~ /^[^\d\-]/) {
-	$stream->mark($offset, ['Offset', $self]);
+    if ($offset =~ /^\D/) {
+	$stream->mark($offset, bless [$self], 'SWF::Element::_Label::CodeSize');
 	$stream->set_UI16(0);
     } else {
 	$stream->set_UI16($offset);
@@ -4270,8 +4331,8 @@ sub _pack {
 
     my $offset = $self->CodeSize;
 
-    if ($offset =~ /^[^\d\-]/) {
-	$stream->mark($offset, ['Offset', $self]);
+    if ($offset =~ /^\D/) {
+	$stream->mark($offset, bless [$self], 'SWF::Element::_Label::CodeSize');
 	$stream->set_UI16(0);
     } else {
 	$stream->set_UI16($offset);
@@ -4279,6 +4340,231 @@ sub _pack {
 }
 
 *SWF::Element::ACTIONRECORD::ActionWith::_Offset = \&CodeSize;
+
+##########
+
+package SWF::Element::ACTIONRECORD::ActionDefineFunction2;
+
+sub _pack {
+    my ($self, $stream) = @_;
+
+    $self->FunctionName->pack($stream);
+    $stream->set_UI16(scalar @{$self->Parameters});
+    $stream->set_UI8($self->RegisterCount);
+    $stream->set_UI16($self->Flags);
+    $self->Parameters->pack($stream);
+
+    my $offset = $self->CodeSize;
+
+    if ($offset =~ /^\D/) {
+	$stream->mark($offset, bless [$self], 'SWF::Element::_Label::CodeSize');
+	$stream->set_UI16(0);
+    } else {
+	$stream->set_UI16($offset);
+    }
+}
+
+{
+    no warnings 'redefine';
+
+    *SWF::Element::ACTIONRECORD::ActionDefineFunction2::_unpack = sub {
+	my ($self, $stream) = @_;
+
+	$self->FunctionName->unpack($stream);
+	my $numparams = $stream->get_UI16;
+	$self->RegisterCount($stream->get_UI8);
+	$self->Flags($stream->get_UI16);
+	my $params = $self->Parameters;
+	for (my $c = 0 ; $c < $numparams; $c++) {
+	    my $p = $params->new_element;
+	    $p->unpack($stream);
+	    push @$params, $p;
+	}
+	$self->CodeSize($stream->get_UI16);
+    }
+}
+
+*SWF::Element::ACTIONRECORD::ActionDefineFunction2::_Offset = \&CodeSize;
+
+{
+    my $bit = 0;
+    for my $f (qw/ This Arguments Super /) {
+      SWF::Element::_create_flag_accessor("Preload${f}Flag", 'Flags', $bit++);
+      SWF::Element::_create_flag_accessor("Suppress${f}Flag", 'Flags', $bit++);
+    }
+    for my $f (qw/ Root Parent Global /) {
+      SWF::Element::_create_flag_accessor("Preload${f}Flag", 'Flags', $bit++);
+    }
+}
+
+##########
+
+package SWF::Element::ACTIONRECORD::ActionTry;
+
+{
+    no warnings 'redefine';
+
+    *SWF::Element::ACTIONRECORD::ActionTry::_pack = sub {
+	my ($self, $stream) = @_;
+
+	my $flags = 0;
+	my ($trylabel) = ($self->TrySize =~ /^(.*#)/);
+	my ($catchlabel) = ($self->CatchSize =~ /^(.*#)/);
+	my ($finallylabel) = ($self->FinallySize =~ /^(.*#)/);
+
+	$flags |= 4 if defined $self->CatchRegister;
+	$flags |= 2 if ($finallylabel and $finallylabel ne $catchlabel or !$finallylabel and $self->FinallySize != 0);
+	$flags |= 1 if ($catchlabel and $catchlabel ne $trylabel or !$catchlabel and $self->CatchSize != 0);
+
+	$stream->set_UI8($flags);
+	
+	my $byteoffset;
+	my $current_byteoffset = $stream->tell;
+	for my $n (qw/TrySize CatchSize FinallySize/) {
+	    my $offset = $self->$n;
+	    if ($offset =~ /^\D/) {
+		my $label = bless [$self, \$byteoffset], "SWF::Element::_Label::$n";
+		$stream->mark($offset, $label);
+		$stream->set_UI16(0);
+	    } else {
+		$stream->set_UI16($offset);
+	    }
+	}
+	
+	if ($flags & 4) {
+	    $stream->set_UI8($self->CatchRegister);
+	} else {
+	    $self->CatchName->pack($stream);
+	}
+	$byteoffset = $stream->tell - $current_byteoffset;
+    };
+
+    *SWF::Element::ACTIONRECORD::ActionTry::_unpack = sub {
+	my ($self, $stream,$len) = @_;
+
+	my $flags = $stream->get_UI8;
+	$self->TrySize($stream->get_UI16);
+	my $catchsize = $stream->get_UI16;
+	$self->CatchSize($catchsize) if $flags & 1;
+	my $finallysize = $stream->get_UI16;
+	$self->FinallySize($finallysize) if $flags & 2;
+	if ($flags & 4) {
+	    $self->CatchRegister($self->get_UI8);
+	} else {
+	    $self->CatchName->unpack($stream);
+	}
+    };
+}
+
+sub _set_label {
+    my ($self, $pos, $actionstream, $byteoffset) = @_;
+    my $j = $pos+1;
+
+    for my $x_size (qw/ TrySize CatchSize FinallySize /) {
+	my $offset = $self->$x_size;
+
+	next if !defined $offset or $offset <= 0;
+
+	my $set = $byteoffset->[$j];
+	my $dst = $set;
+
+	while ($j<@$byteoffset and ($dst-$set) < $offset) {
+	    $j++;
+	    $dst = $byteoffset->[$j];
+	}
+
+	if ($dst-$set == $offset) {
+	    my $l = $actionstream->[$j]->LocalLabel;
+	    unless ($l) {
+		$l = $actionstream->_get_label;
+		$actionstream->[$j]->LocalLabel($l);
+	    }
+	    $self->$x_size("$l#$offset");
+	}
+    }
+
+}
+
+##########
+
+package SWF::Element::_Label::SkipCount;
+
+sub _resolve_label {
+    my ($self, $pos, $dst, $actions) = @_;
+    my $count = 1;
+
+    for my $element (@$actions) {
+	last if $element eq $self->[0];
+	$count++;
+    }
+    Carp::croak "SkipCount of ".ref($self->[0])." cannot refer backward " if $dst->[0] < $count;
+    return (CORE::pack('C', $dst->[0] - $count), 1);
+}
+
+##########
+
+package SWF::Element::_Label::Offset;
+
+sub _resolve_label {
+    my ($self, $pos, $dst) = @_;
+    return (CORE::pack('v', $dst->[1] - $pos - 2), 2);
+}
+
+##########
+
+package SWF::Element::_Label::CodeSize;
+
+sub _resolve_label {
+    my ($self, $pos, $dst) = @_;
+    my $offset = $dst->[1] - $pos - 2;
+  Carp::croak "Can't set negative code size for ".ref($self->[0]) if $offset < 0;
+    return (CORE::pack('v', $offset), 2);
+}
+
+##########
+
+package SWF::Element::_Label::TrySize;
+
+sub _resolve_label {
+    my ($self, $pos, $dst) = @_;
+    my $offset = $dst->[1] - $pos - ${$self->[1]};
+    (my $trylabel = $self->[0]->TrySize) =~ s/#.*$//;
+
+  Carp::croak "Can't set negative code size for TrySize" if $offset < 0;
+    $self->[0]->TrySize("$trylabel#$offset");
+    return (CORE::pack('v', $offset), 2);
+}
+
+##########
+
+package SWF::Element::_Label::CatchSize;
+
+sub _resolve_label {
+    my ($self, $pos, $dst) = @_;
+    (my $trysize = $self->[0]->TrySize) =~ s/^.*#//;
+    (my $catchlabel = $self->[0]->CatchSize) =~ s/#.*$//;
+    my $offset = $dst->[1] - $pos - ${$self->[1]} - $trysize + 2;
+  Carp::croak "Can't set negative code size for CatchSize" if $offset < 0;
+    $self->[0]->CatchSize("$catchlabel#$offset");
+    return (CORE::pack('v', $offset), 2);
+}
+
+##########
+
+package SWF::Element::_Label::FinallySize;
+
+sub _resolve_label {
+    my ($self, $pos, $dst) = @_;
+    (my $trysize = $self->[0]->TrySize) =~ s/^.*#//;
+    (my $catchsize = $self->[0]->CatchSize) =~ s/^.*#//;
+    (my $finallylabel = $self->[0]->FinallySize) =~ s/#.*$//;
+    my $offset = $dst->[1] - $pos - ${$self->[1]} - $trysize - $catchsize + 4;
+  Carp::croak "Can't set negative code size for FinallySize" if $offset < 0;
+    $self->[0]->FinallySize("$finallylabel#$offset");
+    return (CORE::pack('v', $offset), 2);
+}
+
+
 
 ####  Video  ####
 ##########

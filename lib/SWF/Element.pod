@@ -341,15 +341,16 @@ represents a clip action triggered by clip event.
 
  field                     class
  EventFlags                $
-   ClipEventKeyPress       (EventFlags) - SWF6 only
-   ClipEventDragOut        (EventFlags) - SWF6 only
-   ClipEventDragOver       (EventFlags) - SWF6 only
-   ClipEventRollOut        (EventFlags) - SWF6 only
-   ClipEventRollOver       (EventFlags) - SWF6 only
-   ClipEventReleaseOutside (EventFlags) - SWF6 only
-   ClipEventRelease        (EventFlags) - SWF6 only
-   ClipEventPress          (EventFlags) - SWF6 only
-   ClipEventInitialize     (EventFlags) - SWF6 only
+   ClipEventConstruct      (EventFlags) - SWF7
+   ClipEventKeyPress       (EventFlags) - SWF6 or higher
+   ClipEventDragOut        (EventFlags) - SWF6 or higher
+   ClipEventDragOver       (EventFlags) - SWF6 or higher
+   ClipEventRollOut        (EventFlags) - SWF6 or higher
+   ClipEventRollOver       (EventFlags) - SWF6 or higher
+   ClipEventReleaseOutside (EventFlags) - SWF6 or higher
+   ClipEventRelease        (EventFlags) - SWF6 or higher
+   ClipEventPress          (EventFlags) - SWF6 or higher
+   ClipEventInitialize     (EventFlags) - SWF6 or higher
    ClipEventData           (EventFlags)
    ClipEventKeyUp          (EventFlags)
    ClipEventKeyDown        (EventFlags)
@@ -437,11 +438,27 @@ An ID and name pair of SWF character for export/import.
 =item Tag::EnableDebugger / 2
 
 enables debugging.
-EnableDebugger is for SWF 5, and EnableDebugger2 is for SWF 6.
+EnableDebugger is for SWF 5, and EnableDebugger2 is for SWF 6 or later.
 
  field     class  lookahead
- Reserved  $          *      always 0 (?)
+ Reserved  $          *      always 0
  Password  STRING
+
+=item Tag::ScriptLimits
+
+sets the maximum recurtion depth and ActionScript time-out.
+
+ field                class lookahead
+ MaxRecurtionDepth      $     *
+ ScriptTimeoutSeconds   $     *
+
+=item Tag::SetTabIndex
+
+sets the tab order of the object placed on the specified depth.
+
+ field     class  lookahead
+ Depth     Depth    *
+ TabIndex  $        *
 
 =back
 
@@ -649,6 +666,58 @@ written in the I<CodeSize>.
 
 CodeSize can take the label which indicates the action next to
 the end of the block.
+
+=item ACTIONRECORD::ActionDefineFunction2
+
+defines a function, which can use local registers.
+
+ field                   class
+ FuncitonName            STRING
+ RegisterCount           $
+ Flags                   $
+   PreloadGlobalFlag     (Flags)
+   PreloadParentFlag     (Flags)
+   PreloadRootFlag       (Flags)
+   SuppressSuperFlag     (Flags)
+   PreloadSuperFlag      (Flags)
+   SuppressArgumentsFlag (Flags)
+   PreloadArgumentsFlag  (Flags)
+   SuppressThisFlag      (Flags)
+   PreloadThisFlag       (Flags)
+ Parameters              Array::REGISTERPARAMARRAY
+ CodeSize                $[label]
+
+CodeSize can take the label which indicates the action next to
+the function definition.
+
+=item Array::REGISTERPARAMARRAY
+
+an array of REGISTERPARAM.
+
+=item REGISTERPARAM
+
+shows the correspondence of a register to a named parameter.
+
+ field      class
+ Register   $
+ ParamName  STRING
+
+=item ACTIONRECORD::ActionTry
+
+defines handlers for exception.
+
+ field         class
+ TrySize       $[label]
+ CatchSize     $[label]
+ FinallySize   $[label]
+ CatchName     STRING
+ CatchRegister $
+
+TrySize, CatchSize, and FinallySize can take the label which indicates 
+the action next to the end of each block.
+Either CatchName or CatchRegister should be set, not both.
+
+
 
 =back
 
@@ -907,7 +976,7 @@ defines font glyphs.
 
 An array of SHAPE.
 
-=item Tag::DefineFontInfo
+=item Tag::DefineFontInfo / 2
 
 defines font information.
 
@@ -915,6 +984,7 @@ defines font information.
  FontID               ID           *
  FontName             PSTRING
  FontFlags            $
+   FontFlagsSmallText (FontFlags)
    FontFlagsShiftJIS  (FontFlags)
    FontFlagsANSI      (FontFlags)
    FontFlagsItalic    (FontFlags)
@@ -932,9 +1002,10 @@ defines font glyphs and other information.
  FontFlags              $               *
  - FontFlagsHasLayout   (FontFlags)
    FontFlagsShiftJIS    (FontFlags)
+   FontFlagsSmallText   (FontFlags)
    FontFlagsANSI        (FontFlags)
  - FontFlagsWideOffsets (FontFlags)
- - FontFlagsWideCodes   (FontFlags)
+   FontFlagsWideCodes   (FontFlags)
    FontFlagsItalic      (FontFlags)
    FontFlagsBold        (FontFlags)
  LanguageCode           $               *
@@ -1124,7 +1195,7 @@ defines the format of streaming sound.
    StreamSoundSize        (Flags)
    StreamSoundType        (Flags)
  StreamSoundSampleCount   $           *
- LatencySeek              $           *      - SoundStreamHead2 only
+ LatencySeek              $           *
 
 =item Tag::SoundStreamBlock
 

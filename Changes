@@ -1,5 +1,11 @@
 Revision history for Perl extension SWF::*.
 
+0.32 Sat Mar  7 00:00:00 2004
+       SWF::Element
+	- Features described in the SWF file format specification version 7
+	   are supported.
+	- Invalid ActionCall packing/unpacking is fixed.
+
 0.31 Mon Dec 22 22:00:00 2003
 	- Minor bug fix for SWF::BinStream and SWF::Element.
        SWF::Parser
@@ -30,8 +36,8 @@ Revision history for Perl extension SWF::*.
        SWF::Element
 	- '$' and '@' are not escaped correctly in dumper method. Fixed.
 	- Label positions for WaitForFrame/2 action is wrong. Fixed.
-	- Support property names for ACTIONDATA::Property.
-	- Support 'NaN' and 'Infinity' for ACTIONDATA::Double.
+	- Property names for ACTIONDATA::Property are supported.
+	- 'NaN' and 'Infinity' for ACTIONDATA::Double are supported.
 	- Added some read-only flag accessors.
 	- Added 'lookahead_FieldName' methods.
 	- Added a 'shallow_unpack' method for the DefineSprite tag.
