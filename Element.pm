@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.23';
+$VERSION = '0.24';
 
 sub new {
     my $class = shift;
@@ -396,14 +396,14 @@ _create_class('ACTIONDATA', 'Scalar');
 _create_class('ACTIONDATA::String', 'ACTIONDATA');
 _create_class('ACTIONDATA::Property', 'ACTIONDATA');
 _create_class('ACTIONDATA::NULL', 'ACTIONDATA');
+_create_class('ACTIONDATA::UNDEF', 'ACTIONDATA');
 _create_class('ACTIONDATA::Register', 'ACTIONDATA');
 _create_class('ACTIONDATA::Boolean', 'ACTIONDATA');
 _create_class('ACTIONDATA::Double', 'ACTIONDATA');
 _create_class('ACTIONDATA::Integer', 'ACTIONDATA');
 _create_class('ACTIONDATA::Lookup', 'ACTIONDATA');
 _create_class('CLIPACTIONRECORD', '',
-	      EventFlags6  => '$UI16',
-	      EventFlags   => '$UI16',
+	      EventFlags   => '$',
 	      KeyCode      => '$UI8',
 	      Actions      => 'Array::ACTIONRECORDARRAY');
 _create_class('ASSET', '',
@@ -586,10 +586,12 @@ sub dumper {
     $outputsub||=\&SWF::Element::_default_output;
 
     &$outputsub(ref($self)."->new([\n", 0);
+    my $n = 0;
     for my $i (@$self) {
 	&$outputsub('', $indent+1);
 	$i->dumper($outputsub, $indent+1);
-	&$outputsub(",\n", 0);
+	&$outputsub(",\t\t\t# $n\n", 0);
+	$n++;
     }
     &$outputsub("])", $indent);
 }
@@ -2500,8 +2502,10 @@ sub _unpack {
     $self->LanguageCode($stream->get_UI8);
     $self->FontName->unpack($stream);
     my $glyphcount = $stream->get_UI16;
-    $self->GlyphShapeTable->unpack($stream, ($flag & 8));
-    $self->CodeTable->unpack($stream, $glyphcount, ($flag & 4));
+    if ($glyphcount > 0) {
+	$self->GlyphShapeTable->unpack($stream, ($flag & 8));
+	$self->CodeTable->unpack($stream, $glyphcount, ($flag & 4));
+    }
     if ($flag & 128) {
 	$self->FontAscent($stream->get_SI16);
 	$self->FontDescent($stream->get_SI16);
@@ -2518,12 +2522,15 @@ sub _pack {
 
     $self->FontID->pack($stream);
     my $tempstream = $stream->sub_stream;
-    my $flag = $self->FontFlags & 0b1010011;
+    my $flag = $self->FontFlags & 0b1010111;
 
     $self->FontName->pack($tempstream);
     $tempstream->set_UI16($glyphcount);
-    $self->GlyphShapeTable->pack($tempstream) and ($flag |= 8);
-    $self->CodeTable->pack($tempstream) and ($flag |= 4);
+    if ($glyphcount > 0){
+	$flag &= 0b11111011;
+	$self->GlyphShapeTable->pack($tempstream) and ($flag |= 8);
+	$self->CodeTable->pack($tempstream) and ($flag |= 4);
+    }
     if (defined $self->FontAscent) {
 	$flag |= 128;
 	$tempstream->set_SI16($self->FontAscent);
@@ -2539,7 +2546,7 @@ sub _pack {
 }
 
 {
-    my %flags = (Bold => 0, Italic => 1, ANSI => 4, ShiftJIS => 6);
+    my %flags = (Bold => 0, Italic => 1, WideCodes => 2, ANSI => 4, ShiftJIS => 6);
     for my $f (keys %flags) {
       SWF::Element::_create_flag_accessor("FontFlags$f", 'FontFlags', $flags{$f});
     }
@@ -3172,6 +3179,7 @@ sub _unpack {
 	$stream->get_UI16; # skip reserved.
 	if ($stream->Version >= 6) {  # skip clipaction flag
 	    $stream->get_UI32;
+#	    $stream->get_UI16;
 	} else {
 	    $stream->get_UI16;
 	}
@@ -3613,7 +3621,7 @@ sub dumper {
 }
 
 my @actiondata_types
-     = qw/String Property NULL NULL Register Boolean Double Integer Lookup Lookup/;
+     = qw/String Property NULL UNDEF Register Boolean Double Integer Lookup Lookup/;
 
 sub pack {
     my ($self, $stream) = @_;
@@ -3688,6 +3696,14 @@ package SWF::Element::ACTIONDATA::NULL;
 
 sub pack {
     $_[1]->set_UI8(2);
+}
+
+#########
+
+package SWF::Element::ACTIONDATA::UNDEF;
+
+sub pack {
+    $_[1]->set_UI8(3);
 }
 
 #########
@@ -3794,8 +3810,11 @@ sub unpack {
     my ($self, $stream) = @_;
 
     my $flag = 0;
-    $flag = $self->EventFlags6($stream->get_UI16) if $stream->Version >= 6;
-    $flag |= $self->EventFlags ($stream->get_UI16);
+    if ($stream->Version >= 6) {
+	$flag = $self->EventFlags ($stream->get_UI32);
+    } else {
+	$flag = $self->EventFlags ($stream->get_UI16);
+    }
     return if $flag == 0;
     my $size = $stream->get_UI32;
     my $start = $stream->tell;
@@ -3809,9 +3828,10 @@ sub pack {
     my ($self, $stream) = @_;
 
     if ($stream->Version >= 6) {
-	$stream->set_UI16($self->EventFlags6);
+	$stream->set_UI16($self->EventFlags & 0xffff);
+    } else {
+	$stream->set_UI32($self->EventFlags);
     }
-    $stream->set_UI16($self->EventFlags);
     
     my $tempstream = $stream->sub_stream;
     $tempstream->set_UI8($self->KeyCode) if $self->ClipEventKeyPress;
@@ -3825,8 +3845,8 @@ sub pack {
     for my $f (qw/Load EnterFrame Unload MouseMove MouseDown MouseUp KeyDown KeyUp Data Initialize Press Release ReleaseOutside RollOver RollOut DragOver/) {
       SWF::Element::_create_flag_accessor("ClipEvent$f", 'EventFlags', $bit++);
     }
-  SWF::Element::_create_flag_accessor("ClipEventDragOut",  'EventFlags6', 0);
-  SWF::Element::_create_flag_accessor("ClipEventKeyPress", 'EventFlags6', 1);
+  SWF::Element::_create_flag_accessor("ClipEventDragOut",  'EventFlags', 16);
+  SWF::Element::_create_flag_accessor("ClipEventKeyPress", 'EventFlags', 17);
 }
 
 ##########
