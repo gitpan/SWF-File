@@ -37,9 +37,16 @@ Revision history for Perl extension SWF::*.
 
 0.04  Mon Dec  3 22:02:00 2001
        SWF::Element
-	- Bug fixed in using array reference to set element.
+	- Fixed bug in using array reference to set element.
 	- Minor fix to pass -w.
        SWF::BinStream
 	- Fixed POD.
        SWF::BinStream::File
 	- Fixed POD.
+
+0.05  Thu Jan 10 00:00:00 2002
+       SWF::Element
+	- TEXTRECORD1/2 was not re-blessed with proper subclass. Fixed.
+	- Array::TEXTRECORDARRAY1/2 did not handle TEXTRECORD*::Type0/1
+	  properly. Fixed.
+	- Array::Scalar->configure now can take scalar array reference.

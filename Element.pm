@@ -6,7 +6,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.04';
+$VERSION = '0.05';
 
 sub new {
     my $class = shift;
@@ -105,7 +105,7 @@ sub dumper {
     my ($self, $outputsub, $indent)=@_;
     my @names=$self->element_names;
 
-    $indent||=0;
+    $indent ||= 0;
     $outputsub||=\&_default_output;
 
     &$outputsub(ref($self)."->new(\n", 0);
@@ -340,17 +340,17 @@ _create_class('ACTIONCONDITION', '',
 	      Condition => 'UI16', Actions => 'Array::ACTIONRECORDARRAY');
 _create_class('TEXTRECORD1', '');
 _create_class('TEXTRECORD2', 'TEXTRECORD1');
-_create_class('TEXTRECORD::Type0', '',
+_create_class('TEXTRECORD::Type0', ['TEXTRECORD1','TEXTRECORD2'],
 	      GlyphEntries => 'Array::GLYPHENTRYARRAY');
 _create_class('GLYPHENTRY', '',
 	      TextGlyphIndex => 'Scalar', TextGlyphAdvance => 'Scalar');
-_create_class('TEXTRECORD1::Type1', '',
+_create_class('TEXTRECORD1::Type1', 'TEXTRECORD1',
 	      TextFont    => 'ID',
 	      TextColor   => 'RGB',
 	      TextXOffset => 'SI16',
 	      TextYOffset => 'SI16',
 	      TextHeight  => 'UI16');
-_create_class('TEXTRECORD2::Type1', 'TEXTRECORD1::Type1',
+_create_class('TEXTRECORD2::Type1', ['TEXTRECORD1::Type1', 'TEXTRECORD2'],
 	      TextFont    => 'ID',
 	      TextColor   => 'RGBA',
 	      TextXOffset => 'SI16',  # UI16 ?
@@ -539,6 +539,7 @@ sub defined {
 sub dumper {
     my ($self, $outputsub, $indent) = @_;
 
+    $indent ||= 0;
     $outputsub||=\&SWF::Element::_default_output;
 
     &$outputsub(ref($self)."->new([\n", 0);
@@ -637,6 +638,23 @@ package SWF::Element::Array::Scalar;
 use vars qw(@ISA);
 
 @ISA=qw(SWF::Element::Array);
+
+sub configure {
+    my ($self, @param)=@_;
+    @param = @{$param[0]} if (ref($param[0]) eq 'ARRAY' and ref($param[0][0]));
+    for my $p (@param) {
+	my $element = $self->new_element;
+	if (eval{$p->isa(ref($element))}) {
+	    $element = $p;
+	} elsif (ref($p) eq 'SCALAR') {
+	    $element->configure($p);
+	} else {
+	  Carp::croak "Element type mismatch: ".ref($p)." in ".ref($self);
+	}
+	push @$self, $element;
+    }
+    $self;
+}
 
 sub dumper {
     my ($self, $outputsub, $indent) = @_;
@@ -1029,6 +1047,7 @@ sub load {
     sub dumper {
 	my ($self, $outputsub, $indent) = @_;
 	
+	$indent ||= 0;
 	$outputsub||=\&SWF::Element::_default_output;
 	
 	&$outputsub(ref($self)."->new\n", 0);
@@ -1262,7 +1281,7 @@ sub AUTOLOAD { # auto re-bless with proper sub class by specified accessor.
     $name = $1;
     $class = ref($self);
 
-    for my $subclass ("$class::NEWSHAPE", 'SWF::Element::SHAPERECn::STRAIGHTEDGE', 'SWF::Element::SHAPERECn::CURVEDEDGE') {
+    for my $subclass ("${class}::NEWSHAPE", 'SWF::Element::SHAPERECn::STRAIGHTEDGE', 'SWF::Element::SHAPERECn::CURVEDEDGE') {
 	$class=$subclass, last if $subclass->element_type($name);
     }
     Carp::croak "Element '$name' is NOT in $class " if $class eq ref($self);
@@ -2475,6 +2494,8 @@ sub configure {
 sub dumper {
     my ($self, $outputsub, $indent)=@_;
     my ($k, $v);
+
+    $indent ||= 0;
     $outputsub||=\&SWF::Element::_default_output;
 
     &$outputsub(ref($self)."->new(\n", 0);
@@ -2599,7 +2620,7 @@ sub pack {
 use vars '$AUTOLOAD';
 
 sub AUTOLOAD { # auto re-bless with proper sub class by specified accessor.
-    my $self = shift;;
+    my $self = shift;
     my ($name, $class);
 
     return if $AUTOLOAD =~/::DESTROY$/;
@@ -2607,8 +2628,7 @@ sub AUTOLOAD { # auto re-bless with proper sub class by specified accessor.
     Carp::croak "No such method: $AUTOLOAD" unless $AUTOLOAD=~/::([A-Z]\w+)$/;
     $name = $1;
     $class = ref($self);
-
-    for my $subclass ('SWF::Element::TEXTRECORD::Type0', "$class::Type1") {
+    for my $subclass ('SWF::Element::TEXTRECORD::Type0', "${class}::Type1") {
 	$class=$subclass, last if $subclass->element_type($name);
     }
     Carp::croak "Element '$name' is NOT in $class " if $class eq ref($self);

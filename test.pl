@@ -167,6 +167,7 @@ sub tag {
     eval {
 	$element->unpack($datastream);
     };
+    print $@;
     print "not " if ($@);
     print "ok $tagtest\n";
     $tagtest++;
