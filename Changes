@@ -1,5 +1,12 @@
 Revision history for Perl extension SWF::*.
 
+0.28 Mon Dec 15 22:45:00 2003
+       SWF::Element
+	- Some methods are redefined wrongly. fixed.
+	- Removed some warnings.
+       SWF::Parser
+	- Removed some warnings.
+
 0.27 Sun Nov 30 00:22:55 2003
        SWF::Element
 	- SWF version was not set to TAGSTREAM. fixed.

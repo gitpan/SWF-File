@@ -3,7 +3,7 @@ package SWF::Parser;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.06';
+$VERSION = '0.061';
 
 use SWF::BinStream;
 use Carp;
@@ -23,7 +23,7 @@ sub new {
        $param{'tag-callback'}
     || $param{'tag_callback'}
     || (sub {0});
-    $self->{_header} = {} unless $param{header} =~ /^no(?:ne)?$/;
+    $self->{_header} = {} unless $param{header} and $param{header} =~ /^no(?:ne)?$/;
     $self->{_stream}=$param{'stream'}||(SWF::BinStream::Read->new('', sub{ die "The stream ran short by $_[0] bytes."}));
 
 

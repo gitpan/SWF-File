@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.27';
+$VERSION = '0.28';
 
 sub new {
     my $class = shift;
@@ -131,7 +131,7 @@ sub unpack {
 
 sub _create_pack {
     my $classname = shift;
-    my $u = shift;
+    my $u = shift||'';
     my $packsub = <<SUB_START;
 sub \{
     my \$self = shift;
@@ -153,8 +153,8 @@ SUB_START
     }
     $packsub .='}';
     $unpacksub .='}';
-    *{"${classname}::${u}pack"} = eval($packsub);
-    *{"${classname}::${u}unpack"} = eval($unpacksub);
+    *{"${classname}::${u}pack"} = eval($packsub) unless defined &{"${classname}::${u}pack"};
+    *{"${classname}::${u}unpack"} = eval($unpacksub) unless defined &{"${classname}::${u}unpack"};
 }
 
 # Utility sub to create subclass.
@@ -220,7 +220,7 @@ sub _create_flag_accessor {
 
     *{"${pkg}::$name"} = sub {
 	my ($self, $set) = @_;
-	my $flags = $self->$flagfield;
+	my $flags = $self->$flagfield || 0;
 
 	if (defined $set) {
 	    $flags &= ~$field;
@@ -873,6 +873,10 @@ sub _init {
     my $self = shift;
     $self->ScaleX(1);
     $self->ScaleY(1);
+    $self->RotateSkew0(0);
+    $self->RotateSkew1(0);
+    $self->TranslateX(0);
+    $self->TranslateY(0);
 }
 
 sub pack {
@@ -1656,7 +1660,7 @@ sub _create_tag {
 	} else {
 	    last;
 	}
-	*{"${tag_package}::lookahead_$k"} = eval <<LOOKAHEAD_END;
+	*{"${tag_package}::lookahead_$k"} = eval <<LOOKAHEAD_END unless defined &{"${tag_package}::lookahead_$k"};
 	sub {
 	    my (\$self, \$stream) = \@_;
 	    \$self->$k(\$stream->$v($offset));
@@ -2034,7 +2038,7 @@ sub unpack {
     my $stream = shift;
 
     my $start = $stream->tell;
-    my $length = $self->Length;
+    my $length = $self->Length || 0;
     $self->_unpack($stream, @_) if $length>0;
     $stream->flush_bits;
     my $read = $stream->tell - $start;
@@ -2607,7 +2611,7 @@ sub _pack {
 
     $self->FontID->pack($stream);
     my $tempstream = $stream->sub_stream;
-    my $flag = ($self->FontFlags & 0b1010111);
+    my $flag = (($self->FontFlags || 0) & 0b1010111);
 
     $self->FontName->pack($tempstream);
     $tempstream->set_UI16($glyphcount);
@@ -3374,7 +3378,7 @@ sub _pack {
     }
 }
 
-*lookahead_CharacterID = sub {
+sub lookahead_CharacterID {
     my ($self, $stream) = @_;
     $self->lookahead_Flags($stream);
     $self->CharacterID($stream->lookahead_UI16(2)) if $self->PlaceFlagHasCharacter;
