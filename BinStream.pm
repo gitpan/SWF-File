@@ -3,7 +3,7 @@ package SWF::BinStream;
 use strict;
 use vars qw($VERSION);
 
-$VERSION="0.04";
+$VERSION="0.05";
 
 ##
 
@@ -23,8 +23,8 @@ sub new {
 }
 
 sub add_stream {
-    my $self = $_[0];
-    $self->{'_stream'}->add($_[1]);
+    my $self = shift;
+    $self->{'_stream'}->add(shift);
 }
 
 sub _short {
@@ -99,9 +99,11 @@ sub flush_bits {
 
 sub get_bits {
     my ($self, $bits) = @_;
+    my $len = length($self->{'_bits'});
 
-    while (length($self->{'_bits'}) < $bits) {
-	$self->{'_bits'}.=unpack('B8', $self->get_string(1, 'NoFlush'));
+    if ( $len < $bits) {
+	my $slen = (($bits - $len - 1) >>3) + 1;
+	$self->{'_bits'}.=join '', unpack('B8' x $slen, $self->get_string($slen, 'NoFlush'));
     }
     unpack('N', pack('B32', '0' x (32-$bits).substr($self->{'_bits'}, 0, $bits, '')));
 }
@@ -110,7 +112,7 @@ sub get_sbits {
     my ($self, $bits) = @_;
 
     my $b = $self->get_bits($bits);
-    $b-=(2**$bits) if $b>=(2**($bits-1));
+    $b -= (2**$bits) if $b>=(2**($bits-1));
     $b;
 }
 
@@ -261,9 +263,11 @@ sub set_bits {
     my ($self, $num, $nbits) = @_;
     return if $nbits==0;
     $self->{'_bits'} .= substr(unpack('B*',pack('N', _round($num))), -$nbits);
+    my $s = '';
     while (length($self->{'_bits'})>=8) {
-	$self->{'_stream'}->add( pack('B8', substr($self->{'_bits'}, 0,8, '')));
+	$s .= pack('B8', substr($self->{'_bits'}, 0,8, ''));
     }
+    $self->{'_stream'}->add($s) if $s ne '';
 }
 
 sub set_sbits {
@@ -297,7 +301,7 @@ sub set_sbits_list {
 
 sub get_maxbits_of_bits_list {
     my (@param)=@_;
-    my $max=$param[0];
+    my $max=shift;
     my $i;
 
     foreach $i(@param) {
@@ -312,6 +316,8 @@ sub get_maxbits_of_sbits_list {
     my $z = 0;
     return (get_maxbits_of_bits_list(map{my $r=_round($_);$z ||= ($r!=0);($r<0)?(~$r):$r} @_)+$z);
 }
+
+
 
 package SWF::BinStream::Write::SubStream;
 
@@ -585,6 +591,8 @@ number as I<nbits>-length signed bit data.
 =back
 
 =head2 UTILITY FUNCTIONS
+
+=over 4
 
 =item &SWF::BinStream::Write::get_maxbits_of_bits_list( @list )
 

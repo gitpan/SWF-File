@@ -1,16 +1,18 @@
 package SWF::Element;
 
+require 5.006;
+
 use strict;
 use vars qw($VERSION @ISA);
 
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.07';
+$VERSION = '0.08';
 
 sub new {
     my $class = shift;
-    my $self = {};
+    my $self = [];
 
     $class=ref($class)||$class;
 
@@ -24,7 +26,7 @@ sub clone {
     my $source = shift;
     croak "Can't clone a class" unless ref($source);
     my $f = 0;
-    my @attr = map {$f=($f==0)||not ref($_) ? $_ : $_->clone} $source->configure;
+    my @attr = map {($f=($f==0)||not ref($_)) ? $_ : $_->clone} $source->configure;
     $source->new(@attr);
 }
 
@@ -35,25 +37,7 @@ sub new_element {
 
     eval {$element = $self->element_type($name)->new(@_)};
     croak $@ if $@;
-    return $self->{$name} = $element;
-}
-
-sub get_element {
-    my ($self, $name)=@_;
-    return defined $self->{$name} ? $self->{$name} : $self->new_element($name);
-}
-
-sub set_element {
-    my $self = shift;
-    my $name = shift;
-
-    if (eval{$_[0]->isa($self->element_type($name))}) {
-	$self->{$name} = $_[0];
-    } else {
-	my $element = $self->get_element($name);
-	$element->configure(@_);
-    }
-    $self->$name;
+    $element;
 }
 
 sub element_type {
@@ -79,7 +63,8 @@ sub configure {
 	}
 	return @result;
     } elsif (@param==1) {
-	return $self->($param[0])();
+	my $key = $param[0];
+	return $self->$key();
     } else {
 	my ($key, $value);
 	while (($key, $value) = splice(@param, 0, 2)) {
@@ -142,7 +127,6 @@ sub unpack { # unpack SWF binary block
     }
 }
 
-
 # Utility sub to create subclass.
 
 sub _create_class {
@@ -150,6 +134,7 @@ sub _create_class {
 
     my $classname = shift; 
     my $isa = shift;
+    my $base = ((@_ % 2) ? pop : 0);
 
     $classname = "SWF::Element::$classname";
 
@@ -161,13 +146,25 @@ sub _create_class {
     while (@_) {
 	my $k = shift;
 	my $v = shift;
+	my $base1 = $base;
 	push @$element_names, $k;
-	$element_types->{$k} = "SWF::Element::$v";
+	my $type = $element_types->{$k} = "SWF::Element::$v";
 	*{"${classname}::$k"} = sub {
 	    my $self = shift;
-	    return $self->get_element($k) unless @_;
-	    $self->set_element($k, @_);
+	    if (@_) {
+		my $p = $_[0];
+		if (UNIVERSAL::isa($p, $type) or not defined $p) {
+		    $self->[$base1] = $p;
+		} else {
+		    $self->[$base1] = $type->new unless defined $self->[$base1];
+		    $self->[$base1]->configure(@_);
+		}
+	    } else {
+		$self->[$base1] = $type->new unless defined $self->[$base1];
+	    }
+	    $self->[$base1];
 	};
+	$base++;
  
     }
 }
@@ -182,7 +179,7 @@ sub _create_flag_accessor {
 
     *{"${pkg}::$name"} = sub {
 	my ($self, $set) = @_;
-	my $flags = $self->$flagfield;
+	my $flags = $self->$flagfield->value;
 
 	if (defined $set) {
 	    $flags &= ~$field;
@@ -192,7 +189,6 @@ sub _create_flag_accessor {
 	return ($flags & $field) >> $bit;
     }
 }
-
 
 # Create subclasses.
 
@@ -387,11 +383,14 @@ _create_class('ASSET', '',
 
 package SWF::Element::Scalar;
 
-use overload '""' => sub {$_[0]->value}, '0+' => sub{$_[0]->value}, 
+use overload 
+    '""' => \&value,
+    '0+' => \&value,
     '++' => sub {${$_[0]}++},
     '--' => sub {${$_[0]}--},
-    fallback =>1;
-
+    '='  => \&clone,
+    fallback =>1,
+    ;
 @SWF::Element::Scalar::ISA = ('SWF::Element');
 
 sub new {
@@ -413,9 +412,12 @@ sub clone {
 
 sub configure {
     my ($self, $newval)=@_;
-
 #    Carp::croak "Can't set $newval in ".ref($self) unless $newval=~/^[\d.]*$/;
-    $$self = $newval if defined $newval and !ref($newval);
+    unless (ref($newval)) {
+	$$self = $newval;
+    } elsif (eval{$newval->isa('SWF::Element::Scalar')}) {
+	$$self = $newval->value;
+    }
     $self;
 }
 sub value {
@@ -450,24 +452,22 @@ sub _init {}
 # Create elemental scalar subclasses.
 
 for my $type (qw/UI8 SI8 UI16 SI16 UI32 SI32/) {
-    eval <<ENDPACKAGE;
-#-
-    package SWF::Element::$type;
-
-    \@SWF::Element::${type}::ISA=('SWF::Element::Scalar');
-
-    sub pack {
-	my (\$self, \$stream)=\@_;
-	\$stream->set_$type(\$self->value);
+    no strict 'refs';
+    @{"SWF::Element::${type}::ISA"} = ('SWF::Element::Scalar');
+    {
+	my $setsub="set_$type";
+	*{"SWF::Element::${type}::pack"} = sub {
+	    my ($self, $stream)=@_;
+	    $stream->$setsub($self->value);
+	}
     }
-
-    sub unpack {
-        my (\$self, \$stream)=\@_;
-        \$self->configure(\$stream->get_$type);
+    {
+	my $get_sub="get_$type";
+	*{"SWF::Element::${type}::unpack"} = sub {
+	    my ($self, $stream)=@_;
+	    $self->configure($stream->$get_sub());
+	}
     }
-#-
-ENDPACKAGE
-
 }
 
 ##########
@@ -490,7 +490,7 @@ sub configure {
     @param = @{$param[0]} if (ref($param[0]) eq 'ARRAY' and ref($param[0][0]));
     for my $p (@param) {
 	my $element = $self->new_element;
-	if (eval{$p->isa(ref($element))}) {
+	if (UNIVERSAL::isa($p, ref($element)) or not defined $p) {
 	    $element = $p;
 	} elsif (ref($p) eq 'ARRAY') {
 	    $element->configure($p);
@@ -623,8 +623,8 @@ _create_array_class('ACTIONRECORDARRAY','Array',            'ACTIONRECORD',
                     sub {$_[1]->Tag == 0});
 _create_array_class('ACTIONDATAARRAY',  'Array',            'ACTIONDATA',
                     sub {});
-_create_array_class('ACTIONFUNCARGS',   'Array3',           'STRING');
-_create_array_class('WORDARRAY',        'Array3',           'STRING');
+_create_array_class('ACTIONFUNCARGS',   'StringArray',           'STRING');
+_create_array_class('WORDARRAY',        'StringArray',           'STRING');
 _create_array_class('ACTIONBLOCK',      'Array1',           'ACTIONRECORD');
 _create_array_class('ACTIONBLOCK2',     'Array1',           'ACTIONRECORD');
 _create_array_class('EVENTACTIONARRAY', 'Array',            'EVENTACTION',
@@ -762,6 +762,30 @@ sub pack {
 
 ##########
 
+package SWF::Element::StringArray;
+use vars qw(@ISA);
+
+@ISA=qw(SWF::Element::Array3);
+
+sub configure {
+    my ($self, @param)=@_;
+    @param = @{$param[0]} if (ref($param[0]) eq 'ARRAY');
+    for my $p (@param) {
+	my $element = $self->new_element;
+	if (UNIVERSAL::isa($p, ref($element)) or not defined $p) {
+	    $element = $p;
+	} elsif (ref($p) eq '') {
+	    $element->configure($p);
+	} else {
+	  Carp::croak "Element type mismatch: ".ref($p)." in ".ref($self);
+	}
+	push @$self, $element;
+    }
+    $self;
+}
+
+##########
+
 package SWF::Element::RECT;
 
 sub pack {
@@ -802,7 +826,7 @@ sub pack {
     }
     if ($self->RotateSkew0 != 0 or $self->RotateSkew1 != 0) {
 	$stream->set_bits(1,1);
-	$stream->set_sbits_list(5, $self->RotateSkew0 * 65536, $self->RotateSkew1 *65536);
+	$stream->set_sbits_list(5, $self->RotateSkew0 * 65536, $self->RotateSkew1 * 65536);
     } else {
 	$stream->set_bits(0,1);
     }
@@ -850,6 +874,7 @@ sub defined {
 sub scale {
     my ($self, $xscale, $yscale)=@_;
     $yscale=$xscale unless defined $yscale;
+
     $self->ScaleX($self->ScaleX * $xscale);
     $self->RotateSkew0($self->RotateSkew0 * $xscale);
     $self->ScaleY($self->ScaleY * $yscale);
@@ -869,15 +894,14 @@ sub rotate {
     $degree = $degree*3.14159265358979/180;
     my $sin = sin($degree);
     my $cos = cos($degree);
-    my $a = $self->ScaleX;
-    my $b = $self->RotateSkew0;
-    my $c = $self->RotateSkew1;
-    my $d = $self->ScaleY;
-
-    $self->ScaleX($cos*$a+$sin*$c);
-    $self->RotateSkew0($cos*$b+$sin*$d);
-    $self->RotateSkew1(-$sin*$a+$cos*$b);
-    $self->ScaleY(-$sin*$b+$cos*$d);
+    my $a = $self->ScaleX->value;
+    my $b = $self->RotateSkew0->value;
+    my $c = $self->RotateSkew1->value;
+    my $d = $self->ScaleY->value;
+    $self->ScaleX($a*$cos+$c*$sin);
+    $self->RotateSkew0($b*$cos+$d*$sin);
+    $self->RotateSkew1($a*(-$sin)+$b*$cos);
+    $self->ScaleY($b*(-$sin)+$d*$cos);
     $self;
 }
 
@@ -1462,7 +1486,7 @@ sub new {
     my $length = $headerdata{Length};
     my $tag = $headerdata{Tag};
 
-    $self = {};
+    $self = [];
     delete @headerdata{'Length','Tag'};
 
     if (defined $tag) {
@@ -1486,8 +1510,8 @@ sub _init {
 
 sub Length {
     my ($self, $len)=@_;
-    $self->{Length}=$len if defined $len;
-    $self->{Length};
+    $self->[0]=$len if defined $len;
+    $self->[0];
 }
 
 sub unpack {
@@ -1549,7 +1573,7 @@ sub _create_tag {
     my $isa = shift;
 
     $isa = 'Tag'.($isa && "::$isa");
-    SWF::Element::_create_class("Tag::$tagname", $isa, @_);
+    SWF::Element::_create_class("Tag::$tagname", $isa, @_, 1);
 
     $tagname[$tagno] = $tagname;
     *{"SWF::Element::Tag::${tagname}::tag_number"} = sub {$tagno};
@@ -2446,6 +2470,17 @@ package SWF::Element::FONTKERNINGTABLE;
 
 @SWF::Element::FONTKERNINGTABLE::ISA = ('SWF::Element');
 
+sub new {
+    my $class = shift;
+    my $self = {};
+
+    $class=ref($class)||$class;
+
+    bless $self, $class;
+    $self->configure(@_) if @_;
+    $self;
+}
+
 sub unpack {
     my ($self, $stream, $widecode)=@_;
     my $count=$stream->get_UI16;
@@ -2793,7 +2828,7 @@ sub unpack {
 	if ($flags & $check) {
 	    $self->$element->unpack($stream);
 	} else {
-	    $self->new_element($element);
+	    $self->$element;
 	}
 	$check<<=1;
     }
@@ -3062,7 +3097,7 @@ use vars qw/%actiontagtonum %actionnumtotag/;
 sub new {
     my ($class, @headerdata)=@_;
     my %headerdata = ref($headerdata[0]) eq 'ARRAY' ? @{$headerdata[0]} : @headerdata;
-    my $self = {};
+    my $self = [];
     my $tag = $headerdata{Tag};
 
     if (defined $tag and $tag !~/^\d+$/) {

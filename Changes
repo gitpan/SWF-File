@@ -60,3 +60,15 @@ Revision history for Perl extension SWF::*.
 	- Fixed Array::Scalar->configure.
 	- Remove some warnings.
 
+0.08  Mon Mar  4 00:38:10 2002
+       SWF::BinStream
+	- Improved get_bits and set_bits a little.
+	- Fixed POD error.
+       SWF::Element
+	- SWF::Element->configure raised error with one argument. Fixed.
+	- Field accessor method now can take undef.
+	- SWF::Element->clone didn't work properly. Fixed.
+	- Overload '=' of SWF::Element::Scalar.
+	- SWF::Element::Scalar->value method is used to get a field value.
+	- The base of SWF::Element::* is changed from hash to array.
+

@@ -99,16 +99,20 @@ There are some derivative classes which has pack/unpack methods:
   SWF::Element::BinData   - Binary Data (described later).
 
 When the object of these classes is used in expression, it is degraded to mere scalar.
-So, you can handle a field value as a scalar.  For example:
 
   # to be transparent 
-  $alpha = $color->Alpha;
-  $alpha /= 2;
-  $color->Alpha($alpha);
+  $new_alpha = $color->Alpha / 2;
+  $color->Alpha($new_alpha);
 
 or
 
   $color->Alpha($color->Alpha / 2);
+
+When you want to get a field value into a variable, it is recommended to use value method,
+or it may cause an unexpect change of the field.
+
+  #$alpha = $color->Alpha;  # NOT recommended.
+  $alpha = $color->Alpha->value;
 
 =head3 METHODS
 
