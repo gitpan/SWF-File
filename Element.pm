@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.22';
+$VERSION = '0.23';
 
 sub new {
     my $class = shift;
@@ -942,12 +942,7 @@ sub rotate {
     $self->RotateSkew1($c*$cos-$d*$sin);
     $self->ScaleY($c*$sin+$d*$cos);
 
-#    $self->ScaleX($a*$cos+$c*$sin);
-#    $self->RotateSkew0($b*$cos+$d*$sin);
-#    $self->RotateSkew1($a*(-$sin)+$b*$cos);
-#    $self->ScaleY($b*(-$sin)+$d*$cos);
-
-     $self;
+    $self;
 }
 
 ##########
@@ -3618,7 +3613,7 @@ sub dumper {
 }
 
 my @actiondata_types
-     = qw/String Property NULL NULL Register Boolean Double Integer Lookup/;
+     = qw/String Property NULL NULL Register Boolean Double Integer Lookup Lookup/;
 
 sub pack {
     my ($self, $stream) = @_;
@@ -3636,7 +3631,7 @@ sub unpack {
 	if $type > $#actiondata_types;
 
     bless $self, "SWF::Element::ACTIONDATA::$actiondata_types[$type]";
-    $self->_unpack($stream);
+    $self->_unpack($stream, $type);
 }
 
 sub _unpack {};
@@ -3736,14 +3731,19 @@ package SWF::Element::ACTIONDATA::Lookup;
 sub pack {
     my ($self, $stream) = @_;
 
-    $stream->set_UI8(8);
-    $stream->set_UI8($self->value);
+    if ((my $v = $self->value) >= 256) {
+	$stream->set_UI8(9);
+	$stream->set_UI16($v);
+    } else {
+	$stream->set_UI8(8);
+	$stream->set_UI8($v);
+    }
 }
 
 sub _unpack {
-    my ($self, $stream) = @_;
+    my ($self, $stream, $type) = @_;
 
-    $self->configure($stream->get_UI8);
+    $self->configure($type == 8 ? $stream->get_UI8 : $stream->get_UI16);
 }
 
 #########
