@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.35';
+$VERSION = '0.36';
 
 sub new {
     my $class = shift;
@@ -1668,12 +1668,13 @@ sub _create_tag {
 	} else {
 	    last;
 	}
-	*{"${tag_package}::lookahead_$k"} = eval <<LOOKAHEAD_END unless defined &{"${tag_package}::lookahead_$k"};
-	sub {
-	    my (\$self, \$stream) = \@_;
-	    \$self->$k(\$stream->$v($offset));
+	unless (defined &{"${tag_package}::lookahead_$k"}) {
+	    my $offset1 = $offset;
+	    *{"${tag_package}::lookahead_$k"} = sub {
+		my ($self, $stream) = @_;
+		$self->$k($stream->$v($offset1));
+	    }
 	}
-LOOKAHEAD_END
 
         $offset += $o;
     }
@@ -2624,7 +2625,7 @@ sub unpack {
     my $origin = $stream->tell;
 
     $offset[0] = &$getoffset;
-    my $count = $offset[0]>>($wideoffset+1);
+    my $count = $offset[0]>>($wideoffset ? 2:1);
 
     for (my $i = 1; $i < $count; $i++) {
 	push @offset, &$getoffset;

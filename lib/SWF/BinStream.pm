@@ -3,7 +3,7 @@ package SWF::BinStream;
 use strict;
 use vars qw($VERSION);
 
-$VERSION="0.10";
+$VERSION="0.11";
 
 ##
 
@@ -16,8 +16,7 @@ use Data::TemporaryBag;
 sub new {
     my ($class, $initialdata, $shortsub, $version) = @_;
     my $self = bless {
-	    '_bit_pos'  => 0,
-	    '_bit_num'  => 0,
+	    '_bits'  => '',
 	    '_stream'   =>Data::TemporaryBag->new,
 	    '_shortsub' =>$shortsub||sub{0},
 	    '_pos'      => 0,
@@ -144,27 +143,18 @@ sub lookahead_SI32 {
 }
 
 sub flush_bits {
-    my $self = shift;
-    $self->{'_bit_pos'} = 0;
-    $self->{'_bit_num'} = 0;
+    $_[0]->{'_bits'}='';
 }
 
 sub get_bits {
     my ($self, $bits) = @_;
-    my $pos = $self->{'_bit_pos'};
-    my $needbytes = (7 + $bits - $pos) >> 3;
-    my $shift = 8*$needbytes+$pos-$bits;
-    my $bitpat = ((1<<$bits) - 1) << $shift;
-    my $num = $self->{'_bit_num'};
+    my $len = length($self->{'_bits'});
 
-    if ($needbytes > 0) {
-	$num <<= (8*$needbytes);
-	$num |= unpack('N', "\0"x(4-$needbytes).get_string($self, $needbytes));
+    if ( $len < $bits) {
+	my $slen = (($bits - $len - 1) >>3) + 1;
+	$self->{'_bits'}.=join '', unpack('B8' x $slen, $self->get_string($slen, 'NoFlush'));
     }
-    my $data = ($num & $bitpat) >> $shift;
-    $self->{'_bit_num'} = $num & ~$bitpat;
-    $self->{'_bit_pos'} = $shift;
-    return $data;
+    unpack('N', pack('B32', '0' x (32-$bits).substr($self->{'_bits'}, 0, $bits, '')));
 }
 
 sub get_sbits {
