@@ -1,5 +1,9 @@
 Revision history for Perl extension SWF::*.
 
+0.35 Wed Aug 11 09:27:51 2004
+       SWF::Element
+	- Improved to handle NaN.
+
 0.341 Sat Jul 10 11:34:42 2004
        SWF::Element
 	- Fixed unpack CacheRegister in SWF::Element::ACTIONRECORD::ActionTry.

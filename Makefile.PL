@@ -5,7 +5,10 @@ require 5.006;
 WriteMakefile(
     'NAME'	=> 'SWF::File',
     'VERSION_FROM' => 'lib/SWF/Element.pm', # finds $VERSION
-    'PREREQ_PM' => {'Data::TemporaryBag' => 0.08},
+    'PREREQ_PM' => {
+	'Data::TemporaryBag' => 0.08,
+	'Compress::Zlib'     => 0,
+	},
     'EXE_FILES' => ['dumpswf.plx'],
 );
 

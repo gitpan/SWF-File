@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.341';
+$VERSION = '0.35';
 
 sub new {
     my $class = shift;
@@ -4068,8 +4068,7 @@ sub _unpack {
     my $BE = (CORE::pack('s',1) eq CORE::pack('n',1));
     my $INF  = "\x00\x00\x00\x00\x00\x00\xf0\x7f";
     my $NINF = "\x00\x00\x00\x00\x00\x00\xf0\xff";
-    my $NAN  = "\x00\x00\x00\x00\x00\x00\xf8\x7f";
-    my $IND  = "\x00\x00\x00\x00\x00\x00\xf8\xff";
+    my $MANTISSA = ~$NINF;
 
     sub pack {
 	my ($self, $stream) = @_;
@@ -4078,7 +4077,7 @@ sub _unpack {
 	my $value = $self->value;
 	my $data;
 	if ($value eq 'NaN') {
-	    $data = $NAN;
+	    $data = "\x00\x00\x00\x00\x00\x00\xf8\x7f";
 	} elsif ($value eq 'Infinity') {
 	    $data = $INF;
 	} elsif ($value eq '-Infinity') {
@@ -4095,17 +4094,17 @@ sub _unpack {
 	my ($self, $stream) = @_;
 	my $data = $stream->get_string(4);
 	$data = $stream->get_string(4). $data;
-	$data = reverse $data if $BE;
 
 	my $value;
 
-	if ($data eq $NAN or $data eq $IND) {
+	if (($data & $INF) eq $INF and ($data & $MANTISSA) ne "\x00" x 8) {
 	    $value = 'NaN';
 	} elsif ($data eq $INF) {
 	    $value = 'Infinity';
 	} elsif ($data eq $NINF) {
 	    $value = '-Infinity';
 	} else {
+	    $data = reverse $data if $BE;
 	    $value = unpack('d',$data);
 	}
 	$self->configure($value);
