@@ -1,11 +1,18 @@
 Revision history for Perl extension SWF::*.
 
+0.37 Sun Oct 31 02:04:31 2004
+       SWF::Element
+	- Fixed wrong bit shift in _create_flag_accessor.
+	- Fixed wrong flag accessors of Definesound and SoundStreamHead/2.
+	- Support ActionFSCommand2 and ActionStrictMode.
+
 0.36 Tue Sep 14 23:30:00 2004
        SWF::Element
 	- Failed to unpack DefineFont2 if FontFlagsWideOffsets was true. Fixed.
 	- Rewrote 'lookahead_*'.
        SWF::BinStream
 	- 'get_bits' returned a wrong value in a certain case. Restored previous ver.
+							(Thanks to Leonard Holman)
 
 0.35 Wed Aug 11 09:27:51 2004
        SWF::Element
@@ -20,7 +27,7 @@ Revision history for Perl extension SWF::*.
 	- Fixed wrong style index in DefineMorphShape.
 	- Added locking SWF version in CLIPACTIONRECORD.
        SWF::Parser, SWF::BinStream
-	- Improved SWF version control.
+	- Improved SWF version control. (Thanks to Anand Kellar)
 
 0.33 Mon Apr 26 01:02:03 2004
        SWF::Element
@@ -50,7 +57,7 @@ Revision history for Perl extension SWF::*.
 0.29 Wed Dec 17 20:30:00 2003
        SWF::Element
 	- Fixed SWF::Element::ACTIONDATA::Double to handle 'infinity' and
-	  'NaN' properly.
+	  'NaN' properly. (Thanks to Peter Sergeant)
 
 0.28 Mon Dec 15 22:45:00 2003
        SWF::Element
@@ -84,9 +91,10 @@ Revision history for Perl extension SWF::*.
 
 0.25 Thu Aug  7 22:00:00 2003
        SWF::Element
-	- There remained a bug to pack EventFlags. Fixed.
+	- There remained a bug to pack EventFlags. Fixed. (Thanks to Sam Wong)
        dumpswf.plx
 	- The output script cannot set the SWF version correctly. Fixed.
+						(Thanks to John Robens)
 
 0.24 Thu Jul 10 00:20:00 2003
        SWF::Element
@@ -98,6 +106,7 @@ Revision history for Perl extension SWF::*.
 0.23 Sat Jun 14 19:10:00 2003
        SWF::Element
 	- Support 256 or higher value in SWF::Element::ACTIONDATA::Lookup. 
+						 (Thanks to Scott Graham)
 
 0.22 Tue Mar 30 01:00:00 2003
        SWF::Element
@@ -107,6 +116,8 @@ Revision history for Perl extension SWF::*.
        SWF::File
 	- SWF::File->new can do without a file name now.
 	  The file name should be set in $swf->close/save.
+       SWF::Parser
+	- Revised POD. (Thanks to Ben Lamb)
        Others
 	- Added some samples.
 
@@ -120,6 +131,9 @@ Revision history for Perl extension SWF::*.
 
        dumpswf.plx
 	- Add comment outputs of frame number.
+
+0.20  Sun Nov 11 00:00:00 2002
+	This version is not compatible with the previous version.
 
        SWF::Element
 	- Each element name and class is changed according to 
@@ -136,7 +150,7 @@ Revision history for Perl extension SWF::*.
 	- ACTIONRECORDARRAY support local label.
 	  It can be used as the offset of ActionJump, ActionIf, 
 	  and ActionDefineFunction, and also used as the skipcount
-	  of ActionWaitForFrame/2.
+	  of ActionWaitForFrame/2. (Thanks to Scott Graham)
        SWF::BinStream
 	- Support SWF version number. It is referred by some SWF::Element
 	  objects.
@@ -148,9 +162,6 @@ Revision history for Perl extension SWF::*.
 	  constructer.
        SWF::BinStream::File, SWF::Parser
 	- Support SWF version number for SWF::BinStream.
-
-0.20  Sun Nov 11 00:00:00 2002
-	This version is not compatible with the previous version.
 
 0.10  Mon Sep 16 01:00:00 2002
        SWF::BinStream
@@ -178,18 +189,18 @@ Revision history for Perl extension SWF::*.
 
 0.07  Sat Jan 12 02:20:00 2002
        SWF::Element
-	- Fixed Array::Scalar->configure.
-	- Remove some warnings.
+	- Fixed Array::Scalar->configure. (Thanks to Briac Pilpré)
+	- Remove some warnings. (Thanks to Briac Pilpré)
 
 0.06  Thu Jan 10 10:00:00 2002
        SWF::Element
 	- TEXTRECORD::Type0 wrongly re-re-blessed in unpack(). Fixed.
-
+						(Thanks to Briac Pilpré)
 0.05  Thu Jan 10 00:00:00 2002
        SWF::Element
 	- TEXTRECORD1/2 was not re-blessed with proper subclass. Fixed.
 	- Array::TEXTRECORDARRAY1/2 did not handle TEXTRECORD*::Type0/1
-	  properly. Fixed.
+	  properly. Fixed. (Thanks to Briac Pilpré)
 	- Array::Scalar->configure now can take scalar array reference.
 
 0.04  Mon Dec  3 22:02:00 2001

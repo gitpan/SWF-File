@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.36';
+$VERSION = '0.37';
 
 sub new {
     my $class = shift;
@@ -216,7 +216,7 @@ sub _create_flag_accessor {
     my $pkg = (caller)[0];
 
     $len ||=1;
-    my $field = (1<<$len - 1)<<$bit;
+    my $field = (((1<<$len) - 1)<<$bit);
 
     *{"${pkg}::$name"} = sub {
 	my ($self, $set) = @_;
@@ -224,10 +224,10 @@ sub _create_flag_accessor {
 
 	if (defined $set) {
 	    $flags &= ~$field;
-	    $flags |= $set<<$bit;
+	    $flags |= ($set<<$bit);
 	    $self->$flagfield($flags);
 	}
-	return ($flags & $field) >> $bit;
+	return (($flags & $field) >> $bit);
     }
 }
 
@@ -3211,15 +3211,10 @@ sub _pack {
     $self->SoundData->pack($stream);
 }
 
-{
-    my %flags = (Format => [4,4],
-		 Rate   => [2,2],
-		 Size   => [1,1],
-		 Type   => [0,1]);
-    for my $f (keys(%flags)) {
-      SWF::Element::_create_flag_accessor("Sound$f", 'Flags', @{$flags{$f}});
-    }
-}
+ SWF::Element::_create_flag_accessor("SoundFormat", 'Flags', 4, 4);
+ SWF::Element::_create_flag_accessor("SoundRate", 'Flags', 2, 2);
+ SWF::Element::_create_flag_accessor("SoundSize", 'Flags', 1, 1);
+ SWF::Element::_create_flag_accessor("SoundType", 'Flags', 0, 1);
 
 ##########
 
@@ -3257,18 +3252,14 @@ sub _pack {
     $stream->set_SI16($self->LatencySeek) if $self->StreamSoundCompression == 2;
 }
 
-{
-    my %flags = (StreamSoundCompression => [12, 4],
-		 StreamSoundRate        => [10, 2],
-		 StreamSoundSize        => [ 9, 1],
-		 StreamSoundType        => [ 8, 1],
-		 PlaybackSoundRate      => [ 2, 2],
-		 PlaybackSoundSize      => [ 1, 1],
-		 PlaybackSoundType      => [ 0, 1]);
-    for my $f (keys(%flags)) {
-      SWF::Element::_create_flag_accessor($f, 'Flags', @{$flags{$f}});
-    }
-}
+
+SWF::Element::_create_flag_accessor('StreamSoundCompression', 'Flags',12, 4);
+SWF::Element::_create_flag_accessor('StreamSoundRate', 'Flags', 10, 2);
+SWF::Element::_create_flag_accessor('StreamSoundSize', 'Flags', 9, 1);
+SWF::Element::_create_flag_accessor('StreamSoundType', 'Flags', 8, 1);
+SWF::Element::_create_flag_accessor('PlaybackSoundRate', 'Flags', 2, 2);
+SWF::Element::_create_flag_accessor('PlaybackSoundSize', 'Flags', 1, 1);
+SWF::Element::_create_flag_accessor('PlaybackSoundType', 'Flags', 0, 1);
 
 ####  Sprites  ####
 ##########
@@ -3550,6 +3541,7 @@ our %actiontagtonum=(
     ActionThrow                    => 0x2a,
     ActionCastOp                   => 0x2b,
     ActionImplementsOp             => 0x2c,
+    ActionFSCommand2               => 0x2d,
     ActionRandomNumber             => 0x30,
     ActionMBStringLength           => 0x31,
     ActionCharToAscii              => 0x32,
@@ -3797,6 +3789,8 @@ _create_action_tag('Try', 0x8f, undef,
                    FinallySize   => '$UI16',
                    CatchName     => 'STRING',
                    CatchRegister => '$UI8');
+
+_create_action_tag('StrictMode', 0x89, undef, StrictMode => '$UI8');
 
 ##########
 

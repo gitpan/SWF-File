@@ -786,6 +786,12 @@ TrySize, CatchSize, and FinallySize can take the label which indicates
 the action next to the end of each block.
 Either CatchName or CatchRegister should be set, not both.
 
+=item ACTIONRECORD::ActionStrictMode
+
+sets the strict mode (obsolete).
+
+ field       class
+ StrictMode  $
 
 
 =back
