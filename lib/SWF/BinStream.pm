@@ -3,7 +3,7 @@ package SWF::BinStream;
 use strict;
 use vars qw($VERSION);
 
-$VERSION="0.09";
+$VERSION="0.10";
 
 ##
 
@@ -23,13 +23,24 @@ sub new {
 	    '_pos'      => 0,
 	    '_codec' => [],
 	    '_version' => $version||5,
+	    '_lock_version' => 0,
 	  }, $class;
     $self->add_stream($initialdata) if $initialdata ne '';
     $self;
 }
 
 sub Version {
-    shift->{_version};
+    my ($self, $ver) = @_;
+
+    if (defined $ver) {
+	croak "Can't change SWF version " if $self->{_lock_version};
+	$self->{_version} = $ver;
+    }
+    $self->{_version};
+}
+
+sub _lock_version {
+    shift->{_lock_version} = 1;
 }
 
 sub add_stream {
@@ -89,7 +100,7 @@ sub get_SI8 {
 }
 
 sub lookahead_SI8 {
-    unpack 'C', lookahead_string(@_[0, 1], 1);
+    unpack 'c', lookahead_string(@_[0, 1], 1);
 }
 
 sub get_UI16 {
@@ -209,6 +220,7 @@ sub new {
 	    '_mark' => {},
 	    '_codec' => [],
 	    '_version' => $version || 5,
+	    '_lock_version' => 0,
 	    '_framecount' => 0,
 	  }, $class;
 }
@@ -217,10 +229,14 @@ sub Version {
     my ($self, $ver) = @_;
 
     if (defined $ver) {
-	croak "Can't change SWF version " if $self->tell > 0;
+	croak "Can't change SWF version " if $self->{_lock_version};
 	$self->{_version} = $ver;
     }
     $self->{_version};
+}
+
+sub _lock_version {
+    shift->{_lock_version} = 1;
 }
 
 sub autoflush {

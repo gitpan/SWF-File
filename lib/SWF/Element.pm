@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.33';
+$VERSION = '0.34';
 
 sub new {
     my $class = shift;
@@ -2188,14 +2188,14 @@ sub _pack {
     {
 	my $tempstream=$stream->sub_stream;
 	my ($nfillbits, $nlinebits) = (0, 0);
-	my ($maxfill, $maxline) = ($#{$self->MorphFillStyles}, $#{$self->MorphLineStyles});
-	if ($maxfill>0) {
-	    $nfillbits++ while ($maxfill>=(1<<$nfillbits));
-	    $nfillbits--;
+	my ($fillidx, $lineidx) = ($#{$self->MorphFillStyles}+1, $#{$self->MorphLineStyles}+1);
+	if ($fillidx>0) {
+	    $nfillbits=1;
+	    $nfillbits++ while ($fillidx>=(1<<$nfillbits));
 	}
-	if ($maxline>0) {
-	    $nlinebits++ while ($maxline>=(1<<$nlinebits));
-	    $nlinebits--;
+	if ($lineidx>0) {
+	    $nlinebits=1;
+	    $nlinebits++ while ($lineidx>=(1<<$nlinebits));
 	}
 	$self->MorphFillStyles->pack($tempstream);
 	$self->MorphLineStyles->pack($tempstream);
@@ -3390,7 +3390,6 @@ sub _unpack {
     $self->Ratio($stream->get_UI16)        if $flag & 16;
     $self->Name          ->unpack($stream) if $flag & 32;
     $self->ClipDepth     ->unpack($stream) if $flag & 64;
-
     if ($flag & 128) {
 	$stream->get_UI16; # skip reserved.
 	if ($stream->Version >= 6) {  # skip clipaction flag
@@ -4122,6 +4121,7 @@ sub unpack {
     my ($self, $stream) = @_;
 
     my $flag = 0;
+    $stream->_lock_version;
     if ($stream->Version >= 6) {
 	$flag = $self->EventFlags ($stream->get_UI32);
     } else {
@@ -4139,6 +4139,7 @@ sub unpack {
 sub pack {
     my ($self, $stream) = @_;
 
+    $stream->_lock_version;
     if ($stream->Version >= 6) { 
 	$stream->set_UI32($self->EventFlags);
    } else {
