@@ -3,7 +3,7 @@ package SWF::Parser;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 use SWF::BinStream;
 use Carp;
@@ -77,9 +77,14 @@ sub parseheader {
     my $self = shift;
     my $stream = $self->{'_stream'};
     my $header = $self->{'_header'};
-    $header->{'signature'} = $stream->get_string(3) unless exists $header->{'signature'};
+
+    unless (exists $header->{'signature'}) {
+	my $h = $header->{'signature'} = $stream->get_string(3);
+	die "This is not SWF stream " if ($h ne 'CWS' and $h ne 'FWS');
+    }
     $header->{'version'} = $stream->get_UI8 unless exists $header->{'version'};
     $header->{'filelen'} = $stream->get_UI32 unless exists $header->{'filelen'};
+    $stream->add_codec('Zlib') if ($header->{'signature'} eq 'CWS');
     $header->{'nbits'} = $stream->get_bits(5) unless exists $header->{'nbits'};
     my ($nbits)=$header->{'nbits'};
     $header->{'xmin'} = $stream->get_sbits($nbits) unless exists $header->{'xmin'};

@@ -5,6 +5,7 @@ use vars qw($VERSION @ISA);
 
 use SWF::Element;
 use SWF::BinStream::File;
+use Carp;
 
 {
     my $s=SWF::Element::Tag::ShowFrame->new;
@@ -15,7 +16,7 @@ use SWF::BinStream::File;
     }
 }
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 @ISA = ('SWF::BinStream::Write::SubStream');
 
 sub new {
@@ -25,6 +26,7 @@ sub new {
 
     bless $self, ref($class)||$class;
 
+    $self->{_header_CompressFlag} = 0;
     $self->Version  ( $header{Version}   || 5  );
     $self->FrameRate( $header{FrameRate} || 12 );
     $self->FrameSize( $header{FrameSize} || [0, 0, 12800, 9600] );
@@ -32,8 +34,15 @@ sub new {
 }
 
 sub Version {
-    $_[0]->{_header_Version} = $_[1] if defined $_[1];
-    $_[0]->{_header_Version};
+    my ($self, $v) = @_;
+    if (defined $v) {
+	$self->{_header_Version} = $v;
+	if ($v < 6 and $self->{_header_CompressedFlag}) {
+	    $self->{_header_CompressedFlag} = 0;
+	    carp "Compressed SWF is supported by version 6 or higher ";
+	}
+    }
+    $self->{_header_Version};
 }
 
 sub FrameRate {
@@ -67,15 +76,31 @@ sub FrameSize {
     }
 }
 
+sub compress {
+    my ($self, $flag) = @_;
+
+    $flag = 1 unless defined $flag;
+
+    if ($self->{_header_Version} < 6) {
+	carp "Compressed SWF is supported by version 6 or higher ";
+    } else {
+	$self->{_header_CompressedFlag} = $flag;
+    }
+}
+
 sub close {
     my $self = shift;
     my $file_stream = $self->{_parent};
+    my $cf = $self->{_header_CompressedFlag};
 
-    $file_stream->set_string('FWS');
+    $file_stream->set_string( $cf ? 'CWS' : 'FWS' );
     $file_stream->set_UI8($self->Version);
     my $temp = $file_stream->sub_stream;
     $self->FrameSize->pack($temp);
     $file_stream->set_UI32( 3+1+4+ $temp->tell +2+2+ $self->tell);  # Total File Length
+    if ($cf) {
+	$file_stream->add_codec('Zlib');
+    }
     $temp->flush_stream;
     $file_stream->set_UI16($self->FrameRate * 256);
     $file_stream->set_UI16($self->FrameCount);
@@ -146,6 +171,11 @@ Sets and gets the frame count of the movie.
 Usually you don't need to set because I<SWF::File> object automatically count
 the I<ShowFrame> tags. If you want to set the different value, you should set
 it just before I<$swf-E<gt>close>.
+
+=item $swf->compress
+
+Makes output SWF compressed. 
+You should set the version to 6 or higher before call it.
 
 =item $swf->close
 

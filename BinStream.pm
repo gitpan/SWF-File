@@ -3,7 +3,7 @@ package SWF::BinStream;
 use strict;
 use vars qw($VERSION);
 
-$VERSION="0.05";
+$VERSION="0.06";
 
 ##
 
@@ -15,21 +15,21 @@ use Data::TemporaryBag;
 
 sub new {
     my ($class, $initialdata, $shortsub) = @_;
-    bless { '_bits'    =>'',
-	    '_stream'  =>Data::TemporaryBag->new($initialdata),
-	    '_shortsub'    =>$shortsub||sub{0},
-	    '_pos'     => 0,
+    bless { '_bits'     =>'',
+	    '_stream'   =>Data::TemporaryBag->new($initialdata),
+	    '_shortsub' =>$shortsub||sub{0},
+	    '_pos'      => 0,
+	    '_codec' => [],
 	  }, $class;
 }
 
 sub add_stream {
-    my $self = shift;
-    $self->{'_stream'}->add(shift);
-}
+    my ($self, $data) = @_;
 
-sub _short {
-    my ($self, $b)=@_;
-    $self->{'_shortsub'}->($self, $b);
+    for my $codec ( @{$self->{'_codec'}} ) {
+	$data = $codec->decode($data);
+    }
+    $self->{'_stream'}->add($data);
 }
 
 sub require {
@@ -38,10 +38,11 @@ sub require {
 	my $len=$self->Length;
 
 	if ($len < $bytes) {
-	    $self->_short($bytes-$len) and redo;
+	    $self->{'_shortsub'}->($self, $bytes-$len) and redo;
 	    croak "Stream ran short ";
 	}
     }
+
 }
 
 sub Length {
@@ -116,6 +117,35 @@ sub get_sbits {
     $b;
 }
 
+sub close {
+    my $self = shift;
+
+    for my $codec ( @{$self->{'_codec'}} ) {
+	$codec->close;
+    }
+    $self->{'_stream'}->clear;
+}
+
+
+sub add_codec {
+    my ($self, $codec) = @_;
+
+    require "SWF/BinStream/Codec/${codec}.pm" or croak "Can't find codec '$codec'";
+
+    my $m = "SWF::BinStream::Codec::${codec}::Read"->new or croak "Can't find codec '$codec' ";
+
+    push @{$self->{'_codec'}}, $m;
+
+    if (( my $old_stream = $self->{'_stream'})->length > 0) {
+	my $new_stream = Data::TemporaryBag->new;
+
+	while ($old_stream->length > 0) {
+	    $new_stream->add($m->decode($old_stream->substr(0, 1024, '')));
+	}
+	$self->{'_stream'} = $new_stream;
+    }
+}
+
 1;
 
 package SWF::BinStream::Write;
@@ -129,6 +159,7 @@ sub new {
 	    '_stream'  => Data::TemporaryBag->new,
 	    '_pos' => 0,
 	    '_mark' => {},
+	    '_codec' => [],
 	  }, $class;
 }
 
@@ -139,8 +170,15 @@ sub autoflush {
     $self->{'_flushsub'}=$flushsub;
 }
 
-sub _CheckFlush {
-    my $self = shift;
+sub _write_stream {
+    my ($self, $data) = @_;
+
+    for my $codec ( @{$self->{'_codec'}} ) {
+	$data = $codec->encode($data);
+    }
+    return if $data eq '';
+
+    $self->{'_stream'}->add($data);
 
     if ($self->{'_flushsize'}>0 and $self->{'_stream'}->length >= $self->{'_flushsize'}) {
 	my $sub=$self->{'_flushsub'};
@@ -164,7 +202,9 @@ sub flush_stream {
 	$self->{'_pos'}+=length($str);
 	$self->{'_stream'}=Data::TemporaryBag->new;
     }
+
     $self->{'_flushsub'}->($self, $str) if defined $self->{'_flushsub'};
+
     $str;
 }
 
@@ -175,8 +215,7 @@ sub flush_bits {
 
     return if $len<=0;
     $self->{'_bits'}='';
-    $self->{'_stream'}->add(pack('B8', $bits.('0'x(8-$len))));
-    $self->_CheckFlush();
+    $self->_write_stream(pack('B8', $bits.('0'x(8-$len))));
 }
 
 sub Length {
@@ -213,8 +252,7 @@ sub set_string {
     my ($self, $str) = @_;
 
     $self->flush_bits;
-    $self->{'_stream'}->add($str);
-    $self->_CheckFlush();
+    $self->_write_stream($str);
 }
 
 sub _round {
@@ -317,7 +355,29 @@ sub get_maxbits_of_sbits_list {
     return (get_maxbits_of_bits_list(map{my $r=_round($_);$z ||= ($r!=0);($r<0)?(~$r):$r} @_)+$z);
 }
 
+sub close {
+    my $self = shift;
 
+    my $data = $self->flush_stream;
+    my $rest = '';
+    for my $codec ( @{$self->{'_codec'}} ) {
+	$rest = $codec->close($rest);
+    }
+    $self->{'_flushsub'}->($self, $rest) if defined $self->{'_flushsub'};
+
+    $data .= $rest;
+    $data;
+}
+
+sub add_codec {
+    my ($self, $codec) = @_;
+
+    require "SWF/BinStream/Codec/${codec}.pm" or croak "Can't find codec '$codec'";
+
+    my $m = "SWF::BinStream::Codec::${codec}::Write"->new or croak "Can't find codec '$codec'";
+
+    push @{$self->{'_codec'}}, $m;
+}
 
 package SWF::BinStream::Write::SubStream;
 
@@ -344,7 +404,8 @@ sub flush_stream {
 }
 
 sub autoflush {} # Ignore autoflush.
-sub _CheckFlush {}
+sub add_codec {warn "Can't add codec to the sub stream"}
+*SWF::BinStream::Write::SubStream::close = \&flush_stream;
 
 1;
 
@@ -409,6 +470,11 @@ is a binary string to set as initial data of the stream. The second is
 a reference of a subroutine which is called when the stream data runs
 short.  The subroutine is called with two ARGS, the first is I<$stream>
 itself, and the second is how many bytes wanted.
+
+=item $stream->add_codec( $codec_name )
+
+Adds stream decoder.
+Decoder 'Zlib' is only available now.
 
 =item $stream->add_stream( $binary_data )
 
@@ -490,6 +556,11 @@ use I<flush_bits>.
 =item SWF::BinStream::Write->new
 
 Creates a write stream.
+
+=item $stream->add_codec( $codec_name )
+
+Adds stream encoder.
+Encoder 'Zlib' is only available now.
 
 =item $stream->autoflush( $size, \&callback_when_flush )
 

@@ -6,6 +6,8 @@ Element.pod
 BinStream.pm
 Parser.pm
 lib/SWF/BinStream/File.pm
+lib/SWF/BinStream/Codec.pod
+lib/SWF/BinStream/Codec/Zlib.pm
 Makefile.PL
 MANIFEST
 test.pl

@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.09';
+$VERSION = '0.10';
 
 sub new {
     my $class = shift;

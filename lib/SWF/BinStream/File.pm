@@ -4,7 +4,7 @@ use strict;
 use vars qw($VERSION);
 use SWF::BinStream;
 
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 package SWF::BinStream::File::Read;
 
@@ -54,7 +54,7 @@ sub close {
     my $self = shift;
     my $res;
 
-    $self->{_stream}->clear;
+    $self->close;
     $res = close $self->{_file} if defined $self->{_file};
     undef $self->{_file};
     $res;
@@ -115,7 +115,7 @@ sub close {
     my $res;
 
     if (defined $file) {
-	$self->flush_stream;
+	$self->SUPER::close;
 	$res = close $file;
 	undef $self->{_file};
     }

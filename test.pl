@@ -14,9 +14,10 @@ print "not " if $@;
 print "ok 1\n";
 
 eval {
-    $new->Version(5);
+    $new->Version(6);
     $new->FrameSize(0, 0, 6400, 4800);
     $new->FrameRate(20);
+    $new->compress;
 };
 print "not " if $@;
 print "ok 2\n";
@@ -156,7 +157,7 @@ unlink 'test.swf';
 sub header {
     my ($self, $signature, $version, $length, $xmin, $ymin, $xmax, $ymax, $framerate, $framecount ) = @_;
 
-    print "not " if $signature ne 'FWS' or $version != 5 or $framerate != 20;
+    print "not " if $signature ne 'CWS' or $version != 6 or $framerate != 20;
     print "ok 5\n";
 }
 

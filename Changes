@@ -75,3 +75,11 @@ Revision history for Perl extension SWF::*.
 0.09  Wed Apr 17 23:30:00 2002
        SWF::Element
 	- SHAPERECn was not re-blessed to SHAPERECn::STRAIGHTEDGE properly.
+
+0.10  Mon Sep 16 01:00:00 2002
+       SWF::BinStream
+	- Supported Codec filter module.
+       SWF::File, SWF::Parser
+	- Supported zlib-compressed SWF file.
+       Others
+	- Added SWF::BinStream::Codec::Zlib.
