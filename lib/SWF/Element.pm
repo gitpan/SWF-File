@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.32';
+$VERSION = '0.33';
 
 sub new {
     my $class = shift;
@@ -171,7 +171,7 @@ sub _create_class {
     my $element_names = \@{"${classname}::_Element_Names"};
     my $element_types = \%{"${classname}::_Element_Types"};
 
-    $isa = [$isa] unless ref($isa) eq 'ARRAY';
+#    $isa = [$isa] unless ref($isa) eq 'ARRAY';
     @{"${classname}::ISA"}=map {$_ ? "SWF::Element::$_" : "SWF::Element"} @$isa;
     while (@_) {
 	my $k = shift;
@@ -233,10 +233,10 @@ sub _create_flag_accessor {
 
 # Create subclasses.
 
-_create_class('ID', 'Scalar');
-_create_class('Depth', 'Scalar');
-_create_class('BinData', 'Scalar');
-_create_class('RGB', '',
+_create_class('ID', ['Scalar']);
+_create_class('Depth', ['Scalar']);
+_create_class('BinData', ['Scalar']);
+_create_class('RGB', [''],
 	      Red   => '$UI8',
 	      Green => '$UI8',
 	      Blue  => '$UI8');
@@ -247,21 +247,21 @@ _create_class('RGBA', ['', 'RGB'],
 	      Blue  => '$UI8',
 	      Alpha => '$UI8');
 _create_pack('RGBA');
-_create_class('RECT', '',
+_create_class('RECT', [''],
 	      Xmin => '$', Ymin => '$',
 	      Xmax => '$', Ymax => '$');
-_create_class('MATRIX', '',
+_create_class('MATRIX', [''],
 	      ScaleX      => '$', ScaleY      => '$',
 	      RotateSkew0 => '$', RotateSkew1 => '$',
 	      TranslateX  => '$', TranslateY  => '$');
-_create_class('CXFORM', '',
+_create_class('CXFORM', [''],
 	      RedMultTerm   => '$', 
 	      GreenMultTerm => '$',
 	      BlueMultTerm  => '$',
 	      RedAddTerm    => '$',
 	      GreenAddTerm  => '$',
 	      BlueAddTerm   => '$');
-_create_class('CXFORMWITHALPHA', 'CXFORM',
+_create_class('CXFORMWITHALPHA', ['CXFORM'],
 	      RedMultTerm   => '$', 
 	      GreenMultTerm => '$',
 	      BlueMultTerm  => '$',
@@ -270,54 +270,54 @@ _create_class('CXFORMWITHALPHA', 'CXFORM',
 	      GreenAddTerm  => '$',
 	      BlueAddTerm   => '$',
 	      AlphaAddTerm  => '$');
-_create_class('STRING', 'Scalar');
-_create_class('PSTRING', 'STRING');
-_create_class('FILLSTYLE1', '',
+_create_class('STRING', ['Scalar']);
+_create_class('PSTRING', ['STRING']);
+_create_class('FILLSTYLE1', [''],
 	      FillStyleType  => '$UI8',
 	      Color          => 'RGB',
 	      GradientMatrix => 'MATRIX',
 	      Gradient       => 'Array::GRADIENT1',
 	      BitmapID       => 'ID',
 	      BitmapMatrix   => 'MATRIX');
-_create_class('FILLSTYLE3', 'FILLSTYLE1',
+_create_class('FILLSTYLE3', ['FILLSTYLE1'],
 	      FillStyleType  => '$UI8',
 	      Color          => 'RGBA',
 	      GradientMatrix => 'MATRIX',
 	      Gradient       => 'Array::GRADIENT3',
 	      BitmapID       => 'ID',
 	      BitmapMatrix   => 'MATRIX');
-_create_class('GRADRECORD1', '',
+_create_class('GRADRECORD1', [''],
 	      Ratio => '$UI8',
 	      Color => 'RGB');
 _create_pack('GRADRECORD1');
-_create_class('GRADRECORD3', 'GRADRECORD1',
+_create_class('GRADRECORD3', ['GRADRECORD1'],
 	      Ratio => '$UI8',
 	      Color => 'RGBA');
-_create_class('LINESTYLE1', '',
+_create_class('LINESTYLE1', [''],
 	      Width => '$UI16',
 	      Color => 'RGB');
 _create_pack('LINESTYLE1');
-_create_class('LINESTYLE3', 'LINESTYLE1',
+_create_class('LINESTYLE3', ['LINESTYLE1'],
 	      Width => '$UI16',
 	      Color => 'RGBA');
-_create_class('SHAPE', '',
+_create_class('SHAPE', [''],
 	      ShapeRecords => 'Array::SHAPERECORDARRAY1');
-_create_class('SHAPEWITHSTYLE1', 'SHAPE',
+_create_class('SHAPEWITHSTYLE1', ['SHAPE'],
 	      FillStyles   => 'Array::FILLSTYLEARRAY1',
 	      LineStyles   => 'Array::LINESTYLEARRAY1',
 	      ShapeRecords => 'Array::SHAPERECORDARRAY1');
-_create_class('SHAPEWITHSTYLE2', 'SHAPEWITHSTYLE1',
+_create_class('SHAPEWITHSTYLE2', ['SHAPEWITHSTYLE1'],
 	      FillStyles   => 'Array::FILLSTYLEARRAY2',
 	      LineStyles   => 'Array::LINESTYLEARRAY2',
 	      ShapeRecords => 'Array::SHAPERECORDARRAY2');
-_create_class('SHAPEWITHSTYLE3', 'SHAPEWITHSTYLE2',
+_create_class('SHAPEWITHSTYLE3', ['SHAPEWITHSTYLE2'],
 	      FillStyles   => 'Array::FILLSTYLEARRAY3',
 	      LineStyles   => 'Array::LINESTYLEARRAY3',
 	      ShapeRecords => 'Array::SHAPERECORDARRAY3');
-_create_class('SHAPERECORD1', '');
-_create_class('SHAPERECORD2', 'SHAPERECORD1');
-_create_class('SHAPERECORD3', 'SHAPERECORD2');
-_create_class('SHAPERECORD1::STYLECHANGERECORD', 'SHAPERECORD1',
+_create_class('SHAPERECORD1', ['']);
+_create_class('SHAPERECORD2', ['SHAPERECORD1']);
+_create_class('SHAPERECORD3', ['SHAPERECORD2']);
+_create_class('SHAPERECORD1::STYLECHANGERECORD', ['SHAPERECORD1'],
 	      MoveDeltaX => '$',
 	      MoveDeltaY => '$',
 	      FillStyle0 => '$',
@@ -344,9 +344,9 @@ _create_class('SHAPERECORDn::STRAIGHTEDGERECORD', ['SHAPERECORD1', 'SHAPERECORD2
 _create_class('SHAPERECORDn::CURVEDEDGERECORD',  ['SHAPERECORD1', 'SHAPERECORD2', 'SHAPERECORD3'],
 	      ControlDeltaX => '$', ControlDeltaY => '$',
 	      AnchorDeltaX  => '$', AnchorDeltaY  => '$');
-_create_class('Tag', '');
-_create_class('Tag::Identified', 'Tag');
-_create_class('MORPHFILLSTYLE', '',
+_create_class('Tag', ['']);
+_create_class('Tag::Identified', ['Tag']);
+_create_class('MORPHFILLSTYLE', [''],
 	      FillStyleType       => '$UI8',
 	      StartColor          => 'RGBA',
 	      EndColor            => 'RGBA',
@@ -356,36 +356,36 @@ _create_class('MORPHFILLSTYLE', '',
 	      BitmapID            => 'ID',
 	      StartBitmapMatrix   => 'MATRIX',
 	      EndBitmapMatrix     => 'MATRIX');
-_create_class('MORPHGRADRECORD', '',
+_create_class('MORPHGRADRECORD', [''],
 	      StartRatio => '$UI8', StartColor => 'RGBA',
 	      EndRatio   => '$UI8', EndColor   => 'RGBA');
 _create_pack('MORPHGRADRECORD');
-_create_class('MORPHLINESTYLE', '',
+_create_class('MORPHLINESTYLE', [''],
 	      StartWidth => '$UI16', EndWidth => '$UI16',
 	      StartColor => 'RGBA',  EndColor => 'RGBA');
 _create_pack('MORPHLINESTYLE');
-_create_class('BUTTONRECORD1', '',
+_create_class('BUTTONRECORD1', [''],
 	      ButtonStates => '$UI8',
 	      CharacterID  => 'ID',
 	      PlaceDepth   => 'Depth',
 	      PlaceMatrix  => 'MATRIX');
-_create_class('BUTTONRECORD2', 'BUTTONRECORD1',
+_create_class('BUTTONRECORD2', ['BUTTONRECORD1'],
 	      ButtonStates   => '$UI8',
 	      CharacterID    => 'ID',
 	      PlaceDepth     => 'Depth',
 	      PlaceMatrix    => 'MATRIX',
 	      ColorTransform => 'CXFORMWITHALPHA');
-_create_class('BUTTONCONDACTION', '',
+_create_class('BUTTONCONDACTION', [''],
 	      Condition => '$UI16', Actions => 'Array::ACTIONRECORDARRAY');
 _create_pack('BUTTONCONDACTION');
-_create_class('TEXTRECORD1', '');
-_create_class('TEXTRECORD2', 'TEXTRECORD1');
+_create_class('TEXTRECORD1', ['']);
+_create_class('TEXTRECORD2', ['TEXTRECORD1']);
 _create_class('TEXTRECORD::TYPE0', ['','TEXTRECORD1','TEXTRECORD2'],
 	      GlyphEntries => 'Array::GLYPHENTRYARRAY');
 _create_pack('TEXTRECORD::TYPE0');
-_create_class('GLYPHENTRY', '',
+_create_class('GLYPHENTRY', [''],
 	      GlyphIndex => '$', GlyphAdvance => '$');
-_create_class('TEXTRECORD1::TYPE1', 'TEXTRECORD1',
+_create_class('TEXTRECORD1::TYPE1', ['TEXTRECORD1'],
 	      FontID     => 'ID',
 	      TextColor  => 'RGB',
 	      XOffset    => '$SI16',
@@ -397,38 +397,38 @@ _create_class('TEXTRECORD2::TYPE1', ['TEXTRECORD1::TYPE1', 'TEXTRECORD2'],
 	      XOffset    => '$SI16',
 	      YOffset    => '$SI16',
 	      TextHeight => '$UI16');
-_create_class('SOUNDINFO', '',
+_create_class('SOUNDINFO', [''],
 	      SyncFlags       => '$',
 	      InPoint         => '$UI32',
 	      OutPoint        => '$UI32',
 	      LoopCount       => '$UI16',
 	      EnvelopeRecords => 'Array::SOUNDENVELOPEARRAY');
-_create_class('SOUNDENVELOPE', '',
+_create_class('SOUNDENVELOPE', [''],
 	      Pos44 => '$UI32', LeftLevel => '$UI16', RightLevel => '$UI16');
 _create_pack('SOUNDENVELOPE');
-_create_class('ACTIONTagNumber', 'Scalar');
-_create_class('ACTIONRECORD', '',
+_create_class('ACTIONTagNumber', ['Scalar']);
+_create_class('ACTIONRECORD', [''],
 	      Tag        => 'ACTIONTagNumber',
 	      LocalLabel => '$');
-_create_class('ACTIONDATA', 'Scalar');
-_create_class('ACTIONDATA::String', 'ACTIONDATA');
-_create_class('ACTIONDATA::Property', 'ACTIONDATA');
-_create_class('ACTIONDATA::NULL', 'ACTIONDATA');
-_create_class('ACTIONDATA::UNDEF', 'ACTIONDATA');
-_create_class('ACTIONDATA::Register', 'ACTIONDATA');
-_create_class('ACTIONDATA::Boolean', 'ACTIONDATA');
-_create_class('ACTIONDATA::Double', 'ACTIONDATA');
-_create_class('ACTIONDATA::Integer', 'ACTIONDATA');
-_create_class('ACTIONDATA::Lookup', 'ACTIONDATA');
-_create_class('CLIPACTIONRECORD', '',
+_create_class('ACTIONDATA', ['Scalar']);
+_create_class('ACTIONDATA::String', ['ACTIONDATA']);
+_create_class('ACTIONDATA::Property', ['ACTIONDATA']);
+_create_class('ACTIONDATA::NULL', ['ACTIONDATA']);
+_create_class('ACTIONDATA::UNDEF', ['ACTIONDATA']);
+_create_class('ACTIONDATA::Register', ['ACTIONDATA']);
+_create_class('ACTIONDATA::Boolean', ['ACTIONDATA']);
+_create_class('ACTIONDATA::Double', ['ACTIONDATA']);
+_create_class('ACTIONDATA::Integer', ['ACTIONDATA']);
+_create_class('ACTIONDATA::Lookup', ['ACTIONDATA']);
+_create_class('CLIPACTIONRECORD', [''],
 	      EventFlags   => '$',
 	      KeyCode      => '$UI8',
 	      Actions      => 'Array::ACTIONRECORDARRAY');
-_create_class('ASSET', '',
+_create_class('ASSET', [''],
 	      ID     => 'ID',
 	      Name   => 'STRING');
 _create_pack('ASSET');
-_create_class('REGISTERPARAM', '',
+_create_class('REGISTERPARAM', [''],
 	      Register  => '$UI8',
 	      ParamName => 'STRING');
 _create_pack('REGISTERPARAM');
@@ -652,55 +652,55 @@ sub _create_array_class {
     *{"${classname}::is_last"} = $is_last if $is_last;
 }
 
-_create_array_class('FILLSTYLEARRAY1', 'Array1', 'FILLSTYLE1');
+_create_array_class('FILLSTYLEARRAY1', ['Array1'], 'FILLSTYLE1');
 _create_array_class('FILLSTYLEARRAY2', ['Array2', 'Array::FILLSTYLEARRAY1'], 'FILLSTYLE1');
-_create_array_class('FILLSTYLEARRAY3', 'Array::FILLSTYLEARRAY2','FILLSTYLE3');
-_create_array_class('GRADIENT1',       'Array1', 'GRADRECORD1');
-_create_array_class('GRADIENT3',       'Array::GRADIENT1', 'GRADRECORD3');
-_create_array_class('LINESTYLEARRAY1', 'Array1', 'LINESTYLE1');
+_create_array_class('FILLSTYLEARRAY3', ['Array::FILLSTYLEARRAY2'],'FILLSTYLE3');
+_create_array_class('GRADIENT1',       ['Array1'], 'GRADRECORD1');
+_create_array_class('GRADIENT3',       ['Array::GRADIENT1'], 'GRADRECORD3');
+_create_array_class('LINESTYLEARRAY1', ['Array1'], 'LINESTYLE1');
 _create_array_class('LINESTYLEARRAY2', ['Array2', 'Array::LINESTYLEARRAY1'], 'LINESTYLE1');
-_create_array_class('LINESTYLEARRAY3', 'Array::LINESTYLEARRAY2', 'LINESTYLE3');
-_create_array_class('SHAPERECORDARRAY1',  'Array',  'SHAPERECORD1',
+_create_array_class('LINESTYLEARRAY3', ['Array::LINESTYLEARRAY2'], 'LINESTYLE3');
+_create_array_class('SHAPERECORDARRAY1',  ['Array'],  'SHAPERECORD1',
 		    sub {$_[1]->set_bits(0,6)},
                     sub {$_[1]->isa('SWF::Element::SHAPERECORDn::ENDSHAPERECORD')});
 
-_create_array_class('SHAPERECORDARRAY2', 'Array::SHAPERECORDARRAY1', 'SHAPERECORD2');
-_create_array_class('SHAPERECORDARRAY3', 'Array::SHAPERECORDARRAY2', 'SHAPERECORD3');
-_create_array_class('MORPHFILLSTYLEARRAY', 'Array2',    'MORPHFILLSTYLE');
-_create_array_class('MORPHLINESTYLEARRAY', 'Array2',    'MORPHLINESTYLE');
-_create_array_class('MORPHGRADIENT',       'Array1',    'MORPHGRADRECORD');
-_create_array_class('BUTTONRECORDARRAY1',  'Array',     'BUTTONRECORD1',
+_create_array_class('SHAPERECORDARRAY2', ['Array::SHAPERECORDARRAY1'], 'SHAPERECORD2');
+_create_array_class('SHAPERECORDARRAY3', ['Array::SHAPERECORDARRAY2'], 'SHAPERECORD3');
+_create_array_class('MORPHFILLSTYLEARRAY', ['Array2'],    'MORPHFILLSTYLE');
+_create_array_class('MORPHLINESTYLEARRAY', ['Array2'],    'MORPHLINESTYLE');
+_create_array_class('MORPHGRADIENT',       ['Array1'],    'MORPHGRADRECORD');
+_create_array_class('BUTTONRECORDARRAY1',  ['Array'],     'BUTTONRECORD1',
                      sub {$_[1]->set_UI8(0)},
                      sub {$_[1]->ButtonStates == 0});
 
-_create_array_class('BUTTONRECORDARRAY2', 'Array::BUTTONRECORDARRAY1', 'BUTTONRECORD2');
-_create_array_class('BUTTONCONDACTIONARRAY', 'Array', 'BUTTONCONDACTION');
-_create_array_class('GLYPHSHAPEARRAY1',          'Array', 'SHAPE');
-_create_array_class('GLYPHSHAPEARRAY2',          'Array', 'SHAPE');
-_create_array_class('CODETABLE',            'Array::Scalar');
-_create_array_class('FONTADVANCETABLE',     'Array::Scalar');
-_create_array_class('FONTBOUNDSTABLE',      'Array', 'RECT', sub {});
-_create_array_class('TEXTRECORDARRAY1',     'Array', 'TEXTRECORD1',
+_create_array_class('BUTTONRECORDARRAY2', ['Array::BUTTONRECORDARRAY1'], 'BUTTONRECORD2');
+_create_array_class('BUTTONCONDACTIONARRAY', ['Array'], 'BUTTONCONDACTION');
+_create_array_class('GLYPHSHAPEARRAY1',          ['Array'], 'SHAPE');
+_create_array_class('GLYPHSHAPEARRAY2',          ['Array'], 'SHAPE');
+_create_array_class('CODETABLE',            ['Array::Scalar']);
+_create_array_class('FONTADVANCETABLE',     ['Array::Scalar']);
+_create_array_class('FONTBOUNDSTABLE',      ['Array'], 'RECT', sub {});
+_create_array_class('TEXTRECORDARRAY1',     ['Array'], 'TEXTRECORD1',
                     sub {$_[1]->set_UI8(0)},
                     sub {$_[1]->isa('SWF::Element::TEXTRECORD::End')});
 
-_create_array_class('TEXTRECORDARRAY2',   'Array::TEXTRECORDARRAY1', 'TEXTRECORD2');
-_create_array_class('GLYPHENTRYARRAY',    'Array1', 'GLYPHENTRY');
-_create_array_class('SOUNDENVELOPEARRAY', 'Array1', 'SOUNDENVELOPE');
-_create_array_class('ACTIONRECORDARRAY',  'Array',  'ACTIONRECORD',
+_create_array_class('TEXTRECORDARRAY2',   ['Array::TEXTRECORDARRAY1'], 'TEXTRECORD2');
+_create_array_class('GLYPHENTRYARRAY',    ['Array1'], 'GLYPHENTRY');
+_create_array_class('SOUNDENVELOPEARRAY', ['Array1'], 'SOUNDENVELOPE');
+_create_array_class('ACTIONRECORDARRAY',  ['Array'],  'ACTIONRECORD',
                     sub {$_[1]->set_UI8(0)},
                     sub {$_[1]->Tag == 0});
-_create_array_class('ACTIONDATAARRAY', 'Array',  'ACTIONDATA',
+_create_array_class('ACTIONDATAARRAY', ['Array'],  'ACTIONDATA',
                     sub {});
-_create_array_class('STRINGARRAY',     'Array3', 'STRING');
-_create_array_class('CLIPACTIONRECORDARRAY', 'Array',  'CLIPACTIONRECORD',
+_create_array_class('STRINGARRAY',     ['Array3'], 'STRING');
+_create_array_class('CLIPACTIONRECORDARRAY', ['Array'],  'CLIPACTIONRECORD',
                     sub {$_[1]->set_UI32(0)},
                     sub {$_[1]->EventFlags == 0});
-_create_array_class('ASSETARRAY',      'Array3', 'ASSET');
-_create_array_class('TAGARRAY',        'Array',  'Tag',
+_create_array_class('ASSETARRAY',      ['Array3'], 'ASSET');
+_create_array_class('TAGARRAY',        ['Array'],  'Tag',
                     sub {},
                     sub {$_[1]->tag_name eq 'End' && ((push @{$_[0]}, $_[1]),1)});
-_create_array_class('REGISTERPARAMARRAY', 'Array', 'REGISTERPARAM',
+_create_array_class('REGISTERPARAMARRAY', ['Array'], 'REGISTERPARAM',
                     sub {});
 
 ##########
@@ -1582,10 +1582,10 @@ sub new {
     delete @headerdata{'Length','Tag'};
 
     if (defined $tag) {
-	my $class = _tag_class($tag);
+	$class = $class->_tag_class($tag);
 	bless $self, $class;
     } else {
-	$class=ref($class)||$class;
+	$class = ref($class)||$class;
 	bless $self, $class;
     }
     $self->_init($length, $tag);
@@ -1600,9 +1600,15 @@ sub _init {
 }
 
 sub Length {
-    my ($self, $len)=@_;
-    $self->[0]=$len if defined $len;
+    my ($self, $len) = @_;
+    $self->[0] = $len if defined $len;
     $self->[0];
+}
+
+sub is_tagtype {
+    my ($self, $type) = @_;
+
+    return $self->isa("SWF::Element::Tag::${type}");
 }
 
 sub unpack {   # unpack tag header, re-bless, and unpack individual data for the tag.
@@ -1613,7 +1619,7 @@ sub unpack {   # unpack tag header, re-bless, and unpack individual data for the
     $tag = $header>>6;
     $length = ($header & 0x3f);
     $length = $stream->get_UI32 if ($length == 0x3f);
-    my $class = SWF::Element::Tag::_tag_class($tag);
+    my $class = $self->_tag_class($tag);
     bless $self, $class;
     $self->_init($length, $tag);
     $self->unpack($stream);
@@ -1623,8 +1629,6 @@ sub unpack {   # unpack tag header, re-bless, and unpack individual data for the
 sub pack {
     Carp::croak "Can't pack the unidentified tag.";
 }
-
-sub tag_number { undef }
 
 sub _unpack {
   Carp::confess "Unexpected _unpack";
@@ -1636,7 +1640,7 @@ sub _pack {
 
 
 sub _tag_class {
-    return 'SWF::Element::Tag::'.($tagname[$_[0]]||'Unknown');
+    return 'SWF::Element::Tag::'.($tagname[$_[1]]||'Unknown');
 }
 
 sub _create_tag {
@@ -1644,9 +1648,9 @@ sub _create_tag {
 
     my $tagname = shift;
     my $tagno = shift;
-    my $isa = shift||'Identified';
-
-    SWF::Element::_create_class("Tag::$tagname", "Tag::$isa", @_, 1);
+    my $isa = shift;
+    $_ = "Tag::$_" for @$isa;
+    SWF::Element::_create_class("Tag::$tagname", $isa, @_, 1);
 
     my $tag_package = "SWF::Element::Tag::${tagname}";
     my $offset = 0;
@@ -1670,12 +1674,14 @@ sub _create_tag {
 	    \$self->$k(\$stream->$v($offset));
 	}
 LOOKAHEAD_END
-	$offset += $o;
+
+        $offset += $o;
     }
 
     $tagname[$tagno] = $tagname;
     *{"${tag_package}::tag_number"} = sub {$tagno};
     *{"${tag_package}::tag_name"} = sub {$tagname};
+    @{"${tag_package}::Packed::ISA"} = ( 'SWF::Element::Tag::Packed', $tag_package );
 }
 
 sub _create_pack {
@@ -1683,41 +1689,49 @@ sub _create_pack {
   SWF::Element::_create_pack("Tag::$tagname",'_');
 }
 
-##  Unknown  ##
+##  Tag types  ##
 
-_create_tag('Unknown', 16, '',
-	    'Tag'    => '$',
-	    'Data'   => 'BinData');
-{
-    no strict 'refs';
-    no warnings;
-    *{"SWF::Element::Tag::Unknown::tag_number"} = sub {$_[0]->Tag};
-}
+@SWF::Element::Tag::Definition::ISA = ('SWF::Element::Tag::Identified');
+  @SWF::Element::Tag::Shape::ISA    = ('SWF::Element::Tag::Definition');
+  @SWF::Element::Tag::Bitmap::ISA   = ('SWF::Element::Tag::Definition');
+    @SWF::Element::Tag::LossLessBitmap::ISA = ('SWF::Element::Tag::Bitmap');
+    @SWF::Element::Tag::JPEG::ISA   = ('SWF::Element::Tag::Bitmap');
+  @SWF::Element::Tag::Font::ISA     = ('SWF::Element::Tag::Definition');
+  @SWF::Element::Tag::Text::ISA     = ('SWF::Element::Tag::Definition');
+  @SWF::Element::Tag::Sound::ISA    = ('SWF::Element::Tag::Definition');
+  @SWF::Element::Tag::Button::ISA   = ('SWF::Element::Tag::Definition');
+  @SWF::Element::Tag::Sprite::ISA   = ('SWF::Element::Tag::Definition');
+  @SWF::Element::Tag::Video::ISA    = ('SWF::Element::Tag::Definition');
+@SWF::Element::Tag::DisplayList::ISA = ('SWF::Element::Tag::Identified');
+@SWF::Element::Tag::Control::ISA    = ('SWF::Element::Tag::Identified');
+
+@SWF::Element::Tag::ValidInSprite::ISA = ('SWF::Element::Tag');
+@SWF::Element::Tag::ActionContainer::ISA  = ('SWF::Element::Tag');
 
 ##  Shapes  ##
 
-_create_tag('DefineShape', 2, '',
+_create_tag('DefineShape', 2, ['Shape'],
 
 	    ShapeID     => 'ID',
 	    ShapeBounds => 'RECT',
 	    Shapes      => 'SHAPEWITHSTYLE1');
 _create_pack('DefineShape');
 
-_create_tag('DefineShape2', 22, 'DefineShape',
+_create_tag('DefineShape2', 22, ['DefineShape'],
 
 	    ShapeID     => 'ID',
 	    ShapeBounds => 'RECT',
 	    Shapes      => 'SHAPEWITHSTYLE2');
 _create_pack('DefineShape2');
 
-_create_tag('DefineShape3', 32, 'DefineShape',
+_create_tag('DefineShape3', 32, ['DefineShape'],
 
 	    ShapeID     => 'ID',
 	    ShapeBounds => 'RECT',
 	    Shapes      => 'SHAPEWITHSTYLE3');
 _create_pack('DefineShape3');
 
-_create_tag('DefineMorphShape', 46, '',
+_create_tag('DefineMorphShape', 46, ['Shape'],
 
 	    CharacterID     => 'ID',
 	    StartBounds     => 'RECT',
@@ -1729,27 +1743,27 @@ _create_tag('DefineMorphShape', 46, '',
 
 ##  Bitmaps  ##
 
-_create_tag('DefineBits', 6, '',
+_create_tag('DefineBits', 6, ['JPEG'],
 
 	    CharacterID => 'ID',
 	    JPEGData    => 'BinData');
 
-_create_tag('JPEGTables', 8, '',
+_create_tag('JPEGTables', 8, ['JPEG'],
 
 	    JPEGData => 'BinData');
 
-_create_tag('DefineBitsJPEG2', 21, 'DefineBits',
+_create_tag('DefineBitsJPEG2', 21, ['DefineBits'],
 
 	    CharacterID => 'ID',
 	    JPEGData    => 'BinData');
 
-_create_tag('DefineBitsJPEG3', 35, 'DefineBitsJPEG2',
+_create_tag('DefineBitsJPEG3', 35, ['DefineBitsJPEG2'],
 
 	    CharacterID     => 'ID',
 	    JPEGData        => 'BinData',
 	    BitmapAlphaData => 'BinData');
 
-_create_tag('DefineBitsLossless', 20, '',
+_create_tag('DefineBitsLossless', 20, ['LossLessBitmap'],
 
 	    CharacterID          => 'ID',
 	    BitmapFormat         => '$UI8',
@@ -1759,7 +1773,7 @@ _create_tag('DefineBitsLossless', 20, '',
 	    ZlibBitmapData       => 'BinData',
 	    );
 
-_create_tag('DefineBitsLossless2', 36, 'DefineBitsLossless',
+_create_tag('DefineBitsLossless2', 36, ['DefineBitsLossless'],
 
 	    CharacterID          => 'ID',
 	    BitmapFormat         => '$UI8',
@@ -1771,27 +1785,27 @@ _create_tag('DefineBitsLossless2', 36, 'DefineBitsLossless',
 
 ##  Buttons  ##
 
-_create_tag('DefineButton', 7, '',
+_create_tag('DefineButton', 7, ['Button', 'ActionContainer'],
 
 	    ButtonID    => 'ID',
 	    Characters  => 'Array::BUTTONRECORDARRAY1',
 	    Actions     => 'Array::ACTIONRECORDARRAY');
 _create_pack('DefineButton');
 
-_create_tag('DefineButton2', 34, '',
+_create_tag('DefineButton2', 34, ['Button', 'ActionContainer'],
 
 	    ButtonID   => 'ID',
 	    Flags      => '$UI8',
 	    Characters => 'Array::BUTTONRECORDARRAY2',
 	    Actions    => 'Array::BUTTONCONDACTIONARRAY');
 
-_create_tag('DefineButtonCxform', 23, '',
+_create_tag('DefineButtonCxform', 23, ['Button'],
 
 	    ButtonID             => 'ID',
 	    ButtonColorTransform => 'CXFORM');
 _create_pack('DefineButtonCxform');
 
-_create_tag('DefineButtonSound', 17, '',
+_create_tag('DefineButtonSound', 17, ['Button'],
 
 	    ButtonID => 'ID', 
 	    ButtonSoundChar0 => 'ID', ButtonSoundInfo0 => 'SOUNDINFO',
@@ -1801,19 +1815,19 @@ _create_tag('DefineButtonSound', 17, '',
 
 ##  Fonts & Texts  ##
 
-_create_tag('DefineFont', 10, '',
+_create_tag('DefineFont', 10, ['Font'],
 
 	    FontID => 'ID', GlyphShapeTable => 'Array::GLYPHSHAPEARRAY1');
 _create_pack('DefineFont');
 
-_create_tag('DefineFontInfo', 13, '',
+_create_tag('DefineFontInfo', 13, ['Font'],
 
 	    FontID        => 'ID',
 	    FontName      => 'PSTRING', 
 	    FontFlags     => '$UI8',
 	    CodeTable     => 'Array::CODETABLE'); 
 
-_create_tag('DefineFontInfo2', 62, 'DefineFontInfo',
+_create_tag('DefineFontInfo2', 62, ['DefineFontInfo'],
 
 	    FontID        => 'ID',
 	    FontName      => 'PSTRING', 
@@ -1821,7 +1835,7 @@ _create_tag('DefineFontInfo2', 62, 'DefineFontInfo',
 	    LanguageCode  => '$UI8',
 	    CodeTable     => 'Array::CODETABLE'); 
 
-_create_tag('DefineFont2', 48, '',
+_create_tag('DefineFont2', 48, ['Font'],
 
 	    FontID           => 'ID', 
 	    FontFlags        => '$UI8',
@@ -1836,7 +1850,7 @@ _create_tag('DefineFont2', 48, '',
 	    FontBoundsTable  => 'Array::FONTBOUNDSTABLE',
 	    FontKerningTable => 'FONTKERNINGTABLE');
 
-_create_tag('DefineText', 11, '',
+_create_tag('DefineText', 11, ['Text'],
 
 	    CharacterID => 'ID',
 	    TextBounds  => 'RECT',
@@ -1844,7 +1858,7 @@ _create_tag('DefineText', 11, '',
 	    TextRecords => 'Array::TEXTRECORDARRAY1');
 _create_pack('DefineText');
 
-_create_tag('DefineText2', 33, 'DefineText',
+_create_tag('DefineText2', 33, ['DefineText'],
 
 	    CharacterID => 'ID',
 	    TextBounds  => 'RECT',
@@ -1852,7 +1866,7 @@ _create_tag('DefineText2', 33, 'DefineText',
 	    TextRecords => 'Array::TEXTRECORDARRAY2');
 _create_pack('DefineText2');
 
-_create_tag('DefineEditText', 37, '',
+_create_tag('DefineEditText', 37, ['Text'],
 
 	    CharacterID  => 'ID',
 	    Bounds       => 'RECT',
@@ -1871,30 +1885,30 @@ _create_tag('DefineEditText', 37, '',
 
 ##  Sounds  ##
 
-_create_tag('DefineSound', 14, '',
+_create_tag('DefineSound', 14, ['Sound'],
 
 	    SoundID          => 'ID',
 	    Flags            => '$UI8',
 	    SoundSampleCount => '$UI32',
 	    SoundData        => 'BinData');
 
-_create_tag('StartSound', 15, '',
+_create_tag('StartSound', 15, ['Identified', 'ValidInSprite'],
 
 	    SoundID   => 'ID',
 	    SoundInfo => 'SOUNDINFO');
 _create_pack('StartSound');
 
-_create_tag('SoundStreamBlock', 19, '',
+_create_tag('SoundStreamBlock', 19, ['Identified', 'ValidInSprite'],
 
 	    StreamSoundData => 'BinData');
 
-_create_tag('SoundStreamHead', 18, '',
+_create_tag('SoundStreamHead', 18, ['Identified', 'ValidInSprite'],
 
 	    Flags                  => '$UI16',
 	    StreamSoundSampleCount => '$UI16',
 	    LatencySeek            => '$SI16');
 
-_create_tag('SoundStreamHead2', 45, 'SoundStreamHead',
+_create_tag('SoundStreamHead2', 45, ['SoundStreamHead'],
 
 	    Flags                  => '$UI16',
 	    StreamSoundSampleCount => '$UI16',
@@ -1902,7 +1916,7 @@ _create_tag('SoundStreamHead2', 45, 'SoundStreamHead',
 
 ##  Sprites  ##
 
-_create_tag('DefineSprite', 39, '',
+_create_tag('DefineSprite', 39, ['Sprite'],
 
 	    SpriteID    => 'ID',
 	    FrameCount  => '$UI16',
@@ -1911,14 +1925,14 @@ _create_tag('DefineSprite', 39, '',
 
 ##  Display list  ##
 
-_create_tag('PlaceObject', 4, '',
+_create_tag('PlaceObject', 4, ['DisplayList', 'ValidInSprite'],
 
 	    CharacterID    => 'ID',
 	    Depth          => 'Depth',
 	    Matrix         => 'MATRIX',
 	    ColorTransform => 'CXFORM');
 
-_create_tag('PlaceObject2', 26, '',
+_create_tag('PlaceObject2', 26, ['DisplayList', 'ActionContainer', 'ValidInSprite'],
 
 	    Flags          => '$UI8',
 	    Depth          => 'Depth',
@@ -1930,70 +1944,70 @@ _create_tag('PlaceObject2', 26, '',
 	    ClipDepth      => 'Depth',
 	    ClipActions    => 'Array::CLIPACTIONRECORDARRAY');
 
-_create_tag('RemoveObject', 5, '',
+_create_tag('RemoveObject', 5, ['DisplayList', 'ValidInSprite'],
 
 	    CharacterID => 'ID', Depth => 'Depth' );
 _create_pack('RemoveObject');
 
-_create_tag('RemoveObject2', 28, '',
+_create_tag('RemoveObject2', 28, ['DisplayList', 'ValidInSprite'],
 
 	    Depth => 'Depth' );
 _create_pack('RemoveObject2');
 
-_create_tag('ShowFrame', 1, '');
+_create_tag('ShowFrame', 1, ['DisplayList', 'ValidInSprite']);
 _create_pack('ShowFrame');
 
 ##  Control  ##
 
-_create_tag('SetBackgroundColor', 9, '',
+_create_tag('SetBackgroundColor', 9, ['Control'],
 
 	    BackgroundColor => 'RGB' );
 _create_pack('SetBackgroundColor');
 
-_create_tag('FrameLabel', 43, '',
+_create_tag('FrameLabel', 43, ['Control', 'ValidInSprite'],
 
 	    Name => 'STRING',
 	    NamedAnchorFlag => '$UI8' );
 
-_create_tag('Protect', 24, '',
+_create_tag('Protect', 24, ['Control'],
 
 	    Reserved => '$UI16',
 	    Password => 'STRING' );
 
-_create_tag('EnableDebugger', 58, '',
+_create_tag('EnableDebugger', 58, ['Control'],
 
 	    Reserved => '$UI16',
 	    Password => 'STRING' );
 _create_pack('EnableDebugger');
 
-_create_tag('EnableDebugger2', 64, '',
+_create_tag('EnableDebugger2', 64, ['Control'],
 
 	    Reserved => '$UI16',
 	    Password => 'STRING' );
 _create_pack('EnableDebugger2');
 
-_create_tag('ScriptLimits', 65, '',
+_create_tag('ScriptLimits', 65, ['Control'],
 
 	    MaxRecurtionDepth    => '$UI16',
 	    ScriptTimeoutSeconds => '$UI16' );
 _create_pack('ScriptLimits');
 
-_create_tag('SetTabIndex', 66, '',
+_create_tag('SetTabIndex', 66, ['Control'],
 
 	    Depth    => 'Depth',
 	    TabIndex => '$UI16' );
 _create_pack('SetTabIndex');
 
 
-_create_tag('End', 0, '');
+_create_tag('End', 0, ['Control', 'ValidInSprite']);
 _create_pack('End');
 
-_create_tag('ExportAssets', 56, '',
+_create_tag('ExportAssets', 56, ['Control'],
 
 	    Assets => 'Array::ASSETARRAY');
 _create_pack('ExportAssets');
 
-_create_tag('ImportAssets', 57, '',
+_create_tag('ImportAssets', 57, ['Control', 'Definition'],
 
 	    URL    => 'STRING',
 	    Assets => 'Array::ASSETARRAY');
@@ -2001,12 +2015,12 @@ _create_pack('ImportAssets');
 
 ##  Actions  ##
 
-_create_tag('DoAction', 12, '',
+_create_tag('DoAction', 12, ['Identified', 'ActionContainer', 'ValidInSprite'],
 
 	    Actions => 'Array::ACTIONRECORDARRAY');
 _create_pack('DoAction');
 
-_create_tag('DoInitAction', 59, '',
+_create_tag('DoInitAction', 59, ['Definition', 'ActionContainer'],
 
 	    SpriteID => 'ID',
 	    Actions  => 'Array::ACTIONRECORDARRAY');
@@ -2014,7 +2028,7 @@ _create_pack('DoInitAction');
 
 ##  Video  ##
 
-_create_tag('DefineVideoStream', 60, '',
+_create_tag('DefineVideoStream', 60, ['Video'],
 
             CharacterID => 'ID',
             NumFrames   => '$UI16',
@@ -2024,7 +2038,7 @@ _create_tag('DefineVideoStream', 60, '',
             CodecID     => '$UI8');
 _create_pack('DefineVideoStream');
 
-_create_tag('VideoFrame', 61, '',
+_create_tag('VideoFrame', 61, ['Video'],
 
             StreamID  => 'ID',
             FrameNum  => '$UI16',
@@ -2033,12 +2047,12 @@ _create_pack('VideoFrame');
 
 ##  others?  ##
 
-_create_tag('FreeCharacter', 3, '',
+_create_tag('FreeCharacter', 3, ['Control'],
 
 	    CharacterID => 'ID');
 _create_pack('FreeCharacter');
 
-_create_tag('NameCharacter', 40, '',
+_create_tag('NameCharacter', 40, ['Control'],
 
 	    ID => 'ID',
 	    Name        => 'STRING');
@@ -2084,18 +2098,29 @@ sub pack {
 }
 
 
-####  Unknown  ####
+####  Packed tag  ####
 ##########
 
-package SWF::Element::Tag::Unknown;
+package SWF::Element::Tag::Packed;
+
+#@SWF::Element::Tag::Packed::ISA = ('SWF::Element::Tag::Identified');
+
+SWF::Element::_create_class
+    ( 'Tag::Packed', ['Tag::Identified'], 
+      Tag  => '$',
+      Data => 'BinData',
+     1 );
 
 sub _init {
     my $self = shift;
-    my ($length, $tag) = @_;
+    my $tag = $_[1];
 
     $self->SUPER::_init(@_);
-    Carp::carp "Tag No. $tag is unknown.";
     $self->Tag($tag);
+}
+
+sub _tag_class {
+    return $tagname[$_[1]] ? 'SWF::Element::Tag::'.$tagname[$_[1]].'::Packed' : 'SWF::Element::Tag::Unknown';
 }
 
 sub _unpack {
@@ -2109,6 +2134,30 @@ sub _pack {
 
     $self->Data->pack($stream);
 }
+
+####  Unknown  ####
+##########
+
+package SWF::Element::Tag::Unknown;
+
+@SWF::Element::Tag::Unknown::ISA = ('SWF::Element::Tag::Packed');
+
+SWF::Element::_create_class
+    ( 'Tag::Unknown', ['Tag::Packed'], 
+      Tag  => '$',
+      Data => 'BinData',
+     1 );
+
+sub _init {
+    my $self = shift;
+    my $tag = $_[1];
+
+    $self->SUPER::_init(@_);
+    Carp::carp "Tag No. $tag is unknown";
+}
+
+sub tag_name {'Unknown'}
+sub tag_number {shift->Tag}
 
 ####  Shapes  ####
 ########
@@ -3259,7 +3308,6 @@ sub parse {
     } elsif (lc($p) ne 'callback' or ref($callback) ne 'CODE') {
       Carp::croak "Callback subroutine is needed to parse tags of sprite";
     }
-    print $$self->Version;
     my $parser = SWF::Parser->new('tag-callback' => $callback, stream => $$self, header => 'no');
     $parser->parse;
 }
@@ -3290,9 +3338,8 @@ sub _pack {
     $self->SpriteID->pack($stream);
     my $tempstream = $stream->sub_stream;
     for my $tag (@{$self->ControlTags}) {
-	my $tagname = $tag->tag_name;
-	if (index('ShowFrame PlaceObject2 RemoveObject2 DoAction StartSound FrameLabel SoundStreamHead2 SoundStreamBlock End', $tagname) < 0) {
-	  Carp::carp "$tagname is invalid tag in DefineSprite ";
+	unless ($tag->is_tagtype('ValidInSprite')) {
+	  Carp::carp $tag->tag_name." is invalid tag in DefineSprite " ;
 	    next;
 	}
 	$tag->pack($tempstream);
@@ -3405,6 +3452,15 @@ sub lookahead_CharacterID {
 ##########
 
 package SWF::Element::Tag::ShowFrame;
+
+sub pack {
+    my ($self, $stream) = @_;
+
+    $self->SUPER::pack($stream);
+    $stream->{_framecount}++;
+}
+
+package SWF::Element::Tag::ShowFrame::Packed;
 
 sub pack {
     my ($self, $stream) = @_;
@@ -3658,7 +3714,7 @@ sub _create_action_tag {
     my $tagisa = shift;
     $tagisa = defined($tagisa) ? "ACTIONRECORD::_$tagisa" :  'ACTIONRECORD';
     $tagname = "Action$tagname";
-    SWF::Element::_create_class("ACTIONRECORD::$tagname", $tagisa, Tag => 'ACTIONTagNumber', LocalLabel => "\$", @_);
+    SWF::Element::_create_class("ACTIONRECORD::$tagname", [$tagisa], Tag => 'ACTIONTagNumber', LocalLabel => "\$", @_);
 
     $actionnumtotag{$tagno} = $tagname;
     $actiontagtonum{$tagname} = $tagno;

@@ -3,7 +3,7 @@ package SWF::BinStream;
 use strict;
 use vars qw($VERSION);
 
-$VERSION="0.081";
+$VERSION="0.09";
 
 ##
 
@@ -15,15 +15,17 @@ use Data::TemporaryBag;
 
 sub new {
     my ($class, $initialdata, $shortsub, $version) = @_;
-    bless {
+    my $self = bless {
 	    '_bit_pos'  => 0,
 	    '_bit_num'  => 0,
-	    '_stream'   =>Data::TemporaryBag->new($initialdata),
+	    '_stream'   =>Data::TemporaryBag->new,
 	    '_shortsub' =>$shortsub||sub{0},
 	    '_pos'      => 0,
 	    '_codec' => [],
 	    '_version' => $version||5,
 	  }, $class;
+    $self->add_stream($initialdata) if $initialdata ne '';
+    $self;
 }
 
 sub Version {
@@ -212,7 +214,13 @@ sub new {
 }
 
 sub Version {
-    shift->{_version};
+    my ($self, $ver) = @_;
+
+    if (defined $ver) {
+	croak "Can't change SWF version " if $self->tell > 0;
+	$self->{_version} = $ver;
+    }
+    $self->{_version};
 }
 
 sub autoflush {
@@ -627,9 +635,10 @@ One optional argument is SWF version number.  Default is 5.
 It is necessary to set proper version because some SWF tags change 
 their structure by the version number. 
 
-=item $stream->Version
+=item $stream->Version( [$version] )
 
 returns SWF version number of the stream.
+You can change the version before you write data to the stream.
 
 =item $stream->add_codec( $codec_name )
 

@@ -3,7 +3,7 @@ package SWF::Parser;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.07';
+$VERSION = '0.08';
 
 use SWF::BinStream;
 use Carp;
@@ -119,10 +119,14 @@ sub parsetag {
 	$tag->{length}=$length;
     }
     unless (exists $tag->{data}) {
-	my $data=$stream->get_string($tag->{length});
-	$tag->{data}=SWF::BinStream::Read->new($data, sub{Carp::confess 'Short!'}, $self->{_version});
+	$stream->_require($tag->{length});
+	$tag->{data} = $stream;
+	$tag->{_next_pos} = $stream->tell + $tag->{length};
     }
     $self->{_tag_callback}->($self, $tag->{header} >> 6, $tag->{length}, $tag->{data});
+    my $offset = $tag->{_next_pos} - $stream->tell;
+    Carp::confess 'Short!' if $offset < 0;
+    $stream->get_string($offset) if $offset > 0;
     $self->{_tag}={};
 }
 
