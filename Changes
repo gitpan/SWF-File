@@ -1,5 +1,10 @@
 Revision history for Perl extension SWF::*.
 
+0.39 Fri Mar 18 00:02:58 2005
+       SWF::Element
+	- Fixed wrong glyph shape offsets in DefineFont.(Thanks to Quyen Phuong)
+	- Fixed wrong flag accessors of DefineFontInfo/2.
+
 0.38 Tue Mar 15 00:57:57 2005
        SWF::Parser
 	- 'parse' mathod did not call the 'tag-callback' sub properly. Fixed.

@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.38';
+$VERSION = '0.39';
 
 sub new {
     my $class = shift;
@@ -2555,20 +2555,17 @@ package SWF::Element::Array::GLYPHSHAPEARRAY1;
 
 sub pack {
     my ($self, $stream)=@_;
-    my $offset = @$self*2;
+    my $offset = @$self*2+2;
 
     $stream->set_UI16($offset);
 
     my $tempstream = $stream->sub_stream;
-    my $last = pop @$self;
 
     for my $element (@$self) {
 	$element->pack($tempstream, 1, 0);
 	$stream->set_UI16($offset + $tempstream->tell);
     }
     $tempstream->flush_stream;
-    $last->pack($stream);
-    push @$self,$last;
 }
 
 sub unpack {
@@ -2889,7 +2886,7 @@ sub _pack {
 }
 
 {
-    my $bit = 1;
+    my $bit = 0;
     for my $f (qw/ WideCodes Bold Italic ANSI ShiftJIS SmallText/) {
       SWF::Element::_create_flag_accessor("FontFlags$f", 'FontFlags', $bit++);
     }
@@ -2918,8 +2915,8 @@ sub _pack {
     $self->FontID   ->pack($stream);
     $self->FontName ->pack($stream);
     my $substream = $stream->sub_stream;
-    my $flag = $self->FontFlags;
-    $self->CodeTable->pack($substream) and ($flag |= 1);
+    my $flag = ($self->FontFlags & 0b11100111 | 1);
+    $self->CodeTable->pack($substream, 1);
 
     $stream->set_UI8($flag);
     $stream->set_UI8($self->LanguageCode);
