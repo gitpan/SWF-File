@@ -6,7 +6,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.06';
+$VERSION = '0.07';
 
 sub new {
     my $class = shift;
@@ -640,20 +640,20 @@ use vars qw(@ISA);
 @ISA=qw(SWF::Element::Array);
 
 sub configure {
-    my ($self, @param)=@_;
-    @param = @{$param[0]} if (ref($param[0]) eq 'ARRAY' and ref($param[0][0]));
-    for my $p (@param) {
-	my $element = $self->new_element;
-	if (eval{$p->isa(ref($element))}) {
-	    $element = $p;
-	} elsif (ref($p) eq 'SCALAR') {
-	    $element->configure($p);
-	} else {
-	  Carp::croak "Element type mismatch: ".ref($p)." in ".ref($self);
-	}
-	push @$self, $element;
+    my $self = shift;
+
+    if (ref($_[0]) eq 'ARRAY') {
+	push @$self, @{$_[0]};
+    } else {
+	push @$self, @_;
     }
     $self;
+}
+
+sub clone {
+    my $self = $_[0];
+    die "Can't clone a class" unless ref($self);
+    $self->new(@$self);
 }
 
 sub dumper {
@@ -2553,7 +2553,7 @@ package SWF::Element::Array::TEXTRECORDARRAY1;
 
 sub pack {
     my ($self, $stream)=@_;
-    my ($nglyphmax, $nglyphbits, $nadvancemax, $nadvancebits, $g, $a);
+    my ($nglyphmax, $nglyphbits, $nadvancemax, $nadvancebits, $g, $a) = (0) x 6;
 
     for my $element (@$self) {
 	next unless ($element->isa('SWF::Element::TEXTRECORD::Type0'));

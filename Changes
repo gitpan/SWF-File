@@ -54,3 +54,9 @@ Revision history for Perl extension SWF::*.
 0.06  Thu Jan 10 10:00:00 2002
        SWF::Element
 	- TEXTRECORD::Type0 wrongly re-re-blessed in unpack(). Fixed.
+
+0.07  Sat Jan 12 02:20:00 2002
+       SWF::Element
+	- Fixed Array::Scalar->configure.
+	- Remove some warnings.
+
