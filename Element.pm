@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.28';
+$VERSION = '0.29';
 
 sub new {
     my $class = shift;
@@ -3967,6 +3967,10 @@ sub _unpack {
     package SWF::Element::ACTIONDATA::Double; # IEEE754 double support needed.
 
     my $BE = (CORE::pack('s',1) eq CORE::pack('n',1));
+    my $INF  = "\x00\x00\x00\x00\x00\x00\xf0\x7f";
+    my $NINF = "\x00\x00\x00\x00\x00\x00\xf0\xff";
+    my $NAN  = "\x00\x00\x00\x00\x00\x00\xf8\x7f";
+    my $IND  = "\x00\x00\x00\x00\x00\x00\xf8\xff";
 
     sub pack {
 	my ($self, $stream) = @_;
@@ -3975,11 +3979,11 @@ sub _unpack {
 	my $value = $self->value;
 	my $data;
 	if ($value eq 'NaN') {
-	    $data = "\x00\x00\x00\x00\x00\x00\xf8\x7f";
+	    $data = $NAN;
 	} elsif ($value eq 'Infinity') {
-	    $data = "\x00\x00\x00\x00\x00\x00\xf0\x7f";
+	    $data = $INF;
 	} elsif ($value eq '-Infinity') {
-	    $data = "\x00\x00\x00\x00\x00\x00\xf0\xff";
+	    $data = $NINF;
 	} else {
 	    $data = CORE::pack('d', $value);
 	    $data = reverse $data if $BE;
@@ -3994,16 +3998,16 @@ sub _unpack {
 	$data = $stream->get_string(4). $data;
 	$data = reverse $data if $BE;
 
-	my $value = unpack('d',$data);
-	
-	if ($value =~/\#/) {
-	    if ($value =~/NAN/) {
-		$value = 'NaN';
-	    } elsif ($value =~/INF/) {
-		$value = ($value=~/-/) ? '-Infinity':'Infinity';
-	    } else {
-	      Carp::croak "Undefined number for ACTIONDATA::Double";
-	    }
+	my $value;
+
+	if ($data eq $NAN or $data eq $IND) {
+	    $value = 'NaN';
+	} elsif ($data eq $INF) {
+	    $value = 'Infinity';
+	} elsif ($data eq $NINF) {
+	    $value = '-Infinity';
+	} else {
+	    $value = unpack('d',$data);
 	}
 	$self->configure($value);
     }

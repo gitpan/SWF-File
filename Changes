@@ -1,5 +1,10 @@
 Revision history for Perl extension SWF::*.
 
+0.29 Wed Dec 17 20:30:00 2003
+       SWF::Element
+	- Fixed SWF::Element::ACTIONDATA::Double to handle 'infinity' and
+	  'NaN' properly.
+
 0.28 Mon Dec 15 22:45:00 2003
        SWF::Element
 	- Some methods are redefined wrongly. fixed.
