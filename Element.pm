@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.08';
+$VERSION = '0.09';
 
 sub new {
     my $class = shift;
@@ -1301,7 +1301,7 @@ sub AUTOLOAD { # auto re-bless with proper sub class by specified accessor.
 
     return if $AUTOLOAD =~/::DESTROY$/;
 
-    Carp::croak "No such method: $AUTOLOAD" unless $AUTOLOAD=~/::([A-Z]\w+)$/;
+    Carp::croak "No such method: $AUTOLOAD" unless $AUTOLOAD=~/::([A-Z]\w*)$/;
     $name = $1;
     $class = ref($self);
 

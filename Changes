@@ -72,3 +72,6 @@ Revision history for Perl extension SWF::*.
 	- SWF::Element::Scalar->value method is used to get a field value.
 	- The base of SWF::Element::* is changed from hash to array.
 
+0.09  Wed Apr 17 23:30:00 2002
+       SWF::Element
+	- SHAPERECn was not re-blessed to SHAPERECn::STRAIGHTEDGE properly.
