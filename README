@@ -45,7 +45,7 @@ that outputs the same SWF file.
 There are some samples in samples directory.
 
 COPYRIGHT
-    Copyright 2000-2002, Yasuhiro Sasama (ySas), <ysas@nmt.ne.jp>
+    Copyright 2000-2004, Yasuhiro Sasama (ySas), <ysas@nmt.ne.jp>
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

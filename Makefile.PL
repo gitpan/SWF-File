@@ -4,8 +4,8 @@ require 5.006;
 # the contents of the Makefile that is written.
 WriteMakefile(
     'NAME'	=> 'SWF::File',
-    'VERSION_FROM' => 'Element.pm', # finds $VERSION
-    'PREREQ_PM' => {'Data::TemporaryBag' => 0.02},
+    'VERSION_FROM' => 'lib/SWF/Element.pm', # finds $VERSION
+    'PREREQ_PM' => {'Data::TemporaryBag' => 0.08},
     'EXE_FILES' => ['dumpswf.plx'],
 );
 

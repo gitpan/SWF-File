@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.30';
+$VERSION = '0.31';
 
 sub new {
     my $class = shift;
@@ -2609,14 +2609,13 @@ sub _pack {
 
     $self->FontID->pack($stream);
     my $tempstream = $stream->sub_stream;
-    my $flag = (($self->FontFlags || 0) & 0b1010111);
+    my $flag = (($self->FontFlags || 0) & 0b01010111);
 
     $self->FontName->pack($tempstream);
     $tempstream->set_UI16($glyphcount);
     if ($glyphcount > 0){
-	$flag &= 0b11111011;
 	$self->GlyphShapeTable->pack($tempstream) and ($flag |= 8);
-	$self->CodeTable->pack($tempstream) and ($flag |= 4);
+	$self->CodeTable->pack($tempstream, $self->FontFlagsWideCodes) and ($flag |= 4);
     }
     if (defined $self->FontAscent) {
 	$flag |= 128;
@@ -2644,8 +2643,7 @@ sub _pack {
 package SWF::Element::Array::CODETABLE;
 
 sub pack {
-    my ($self, $stream)=@_;
-    my $widecode = 0;
+    my ($self, $stream, $widecode)=@_;
 
     for my $element (@$self) {
 	if ($element > 255) {

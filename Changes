@@ -1,8 +1,13 @@
 Revision history for Perl extension SWF::*.
 
+0.31 Mon Dec 22 22:00:00 2003
+	- Minor bug fix for SWF::BinStream and SWF::Element.
+       SWF::Parser
+	- 'abort' did not work correctly for 'parse_file'. Fixed. 
+
 0.30 Sat Dec 20 02:22:00 2003
        SWF::Element
-	- SWF::Element::MATRIX was initialized wrongly since ver.0.28.
+	- SWF::Element::MATRIX was initialized wrongly since ver.0.28. Fixed.
 
 0.29 Wed Dec 17 20:30:00 2003
        SWF::Element

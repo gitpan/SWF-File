@@ -3,7 +3,7 @@ package SWF::BinStream;
 use strict;
 use vars qw($VERSION);
 
-$VERSION="0.08";
+$VERSION="0.081";
 
 ##
 
@@ -309,7 +309,7 @@ sub set_string {
 sub _round {
     my $a=shift;
 
-    $a||=0;
+    return 0 unless $a;
     return int($a+0.5*($a<=>0));
 }
 

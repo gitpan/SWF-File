@@ -3,7 +3,7 @@ package SWF::Parser;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.061';
+$VERSION = '0.07';
 
 use SWF::BinStream;
 use Carp;
@@ -13,7 +13,7 @@ sub new {
     my %param = @_;
     my $self = { _tag             => {},
 		 _version         => 5,
-		 _parsing         => 0,
+		 _aborted         => 0,
 	     };
     $self->{_header_callback} = 
        $param{'header-callback'}
@@ -34,7 +34,10 @@ sub parse {
     my ($self, $data) = @_;
     my $stream = $self->{_stream};
 
-    $self->{_parsing} = 1;
+    if ($self->{_aborted}) {
+	carp 'The SWF parser has been aborted';
+	return $self;
+    }
 
 #    unless (defined $data) {
 #	if (my $bytes=$stream->Length) {
@@ -45,7 +48,7 @@ sub parse {
     $stream->add_stream($data);
     eval {
 	unless (exists $self->{_header}) {
-	    $self->parsetag while $self->{_parsing} and $stream->Length;
+	    $self->parsetag while !$self->{_aborted} and $stream->Length;
 	} else {
 	    $self->parseheader;
 	}
@@ -68,11 +71,11 @@ sub parse_file {
     }
     binmode($file);
     my $chunk = '';
-    while(read($file, $chunk, 4096)) {
+    while(!$self->{_aborted} and read($file, $chunk, 4096)) {
 	$self->parse($chunk);
     }
     close($file);
-    $self->eof;
+    $self->eof unless $self->{_aborted};
 }
 
 sub eof
@@ -124,7 +127,7 @@ sub parsetag {
 }
 
 sub abort {
-    shift->{_parsing} = 0;
+    shift->{_aborted} = 1;
 }
 
 1;

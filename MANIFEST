@@ -1,10 +1,10 @@
 README
 Changes
-File.pm
-Element.pm
-Element.pod
-BinStream.pm
-Parser.pm
+lib/SWF/File.pm
+lib/SWF/Element.pm
+lib/SWF/Element.pod
+lib/SWF/BinStream.pm
+lib/SWF/Parser.pm
 lib/SWF/BinStream/File.pm
 lib/SWF/BinStream/Codec.pod
 lib/SWF/BinStream/Codec/Zlib.pm
