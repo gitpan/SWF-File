@@ -3,7 +3,7 @@ package SWF::Parser;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.051';
+$VERSION = '0.06';
 
 use SWF::BinStream;
 use Carp;
@@ -11,35 +11,41 @@ use Carp;
 sub new {
     my $class = shift;
     my %param = @_;
-    my $self = { _header          => {},
-		 _tag             => {},
+    my $self = { _tag             => {},
 		 _version         => 5,
+		 _parsing         => 0,
 	     };
-    my $a;
-
-    foreach $a(qw(header-callback tag-callback)) {
-	$self->{"_$a"}=$param{$a}||(sub{0});
-    }
-    $self->{'_stream'}=$param{'stream'}||(SWF::BinStream::Read->new('', sub{ die "The stream ran short by $_[0] bytes."}));
+    $self->{_header_callback} = 
+       $param{'header-callback'}
+    || $param{'header_callback'}
+    || (sub {0});
+    $self->{_tag_callback} = 
+       $param{'tag-callback'}
+    || $param{'tag_callback'}
+    || (sub {0});
+    $self->{_header} = {} unless $param{header} =~ /^no(?:ne)?$/;
+    $self->{_stream}=$param{'stream'}||(SWF::BinStream::Read->new('', sub{ die "The stream ran short by $_[0] bytes."}));
 
 
     bless $self, $class;
 }
 
 sub parse {
-    my $self = shift;
-    my $stream = $self->{'_stream'};
+    my ($self, $data) = @_;
+    my $stream = $self->{_stream};
 
-#    unless (defined $_[0]) {
+    $self->{_parsing} = 1;
+
+#    unless (defined $data) {
 #	if (my $bytes=$stream->Length) {
 #	    carp "Data remains $bytes bytes in the stream.";
 #	}
 #	return $self;
 #    }
-    $stream->add_stream($_[0]);
+    $stream->add_stream($data);
     eval {
-	unless (exists $self->{'_header'}) {
-	    $self->parsetag while $stream->Length;
+	unless (exists $self->{_header}) {
+	    $self->parsetag while $self->{_parsing} and $stream->Length;
 	} else {
 	    $self->parseheader;
 	}
@@ -62,7 +68,7 @@ sub parse_file {
     }
     binmode($file);
     my $chunk = '';
-    while(read($file, $chunk, 512)) {
+    while(read($file, $chunk, 4096)) {
 	$self->parse($chunk);
     }
     close($file);
@@ -76,56 +82,49 @@ sub eof
 
 sub parseheader {
     my $self = shift;
-    my $stream = $self->{'_stream'};
-    my $header = $self->{'_header'};
+    my $stream = $self->{_stream};
+    my $header = $self->{_header};
 
-    unless (exists $header->{'signature'}) {
-	my $h = $header->{'signature'} = $stream->get_string(3);
+    unless (exists $header->{signature}) {
+	my $h = $header->{signature} = $stream->get_string(3);
 	Carp::confess "This is not SWF stream " if ($h ne 'CWS' and $h ne 'FWS');
     }
-    $header->{'version'} = $self->{'_version'} = $stream->get_UI8 unless exists $header->{'version'};
-    $header->{'filelen'} = $stream->get_UI32 unless exists $header->{'filelen'};
-    $stream->add_codec('Zlib') if ($header->{'signature'} eq 'CWS');
-    $header->{'nbits'} = $stream->get_bits(5) unless exists $header->{'nbits'};
-    my ($nbits)=$header->{'nbits'};
-    $header->{'xmin'} = $stream->get_sbits($nbits) unless exists $header->{'xmin'};
-    $header->{'xmax'} = $stream->get_sbits($nbits) unless exists $header->{'xmax'};
-    $header->{'ymin'} = $stream->get_sbits($nbits) unless exists $header->{'ymin'};
-    $header->{'ymax'} = $stream->get_sbits($nbits) unless exists $header->{'ymax'};
-    $header->{'rate'} = $stream->get_UI16 / 256 unless exists $header->{'rate'};
-    $header->{'count'} = $stream->get_UI16 unless exists $header->{'count'};
-    $self->header(@{$header}{qw(signature version filelen xmin ymin xmax ymax rate count)});
-    delete $self->{'_header'};
+    $header->{version} = $self->{_version} = $stream->get_UI8 unless exists $header->{version};
+    $header->{filelen} = $stream->get_UI32 unless exists $header->{filelen};
+    $stream->add_codec('Zlib') if ($header->{signature} eq 'CWS');
+    $header->{nbits} = $stream->get_bits(5) unless exists $header->{nbits};
+    my $nbits = $header->{nbits};
+    $header->{xmin} = $stream->get_sbits($nbits) unless exists $header->{xmin};
+    $header->{xmax} = $stream->get_sbits($nbits) unless exists $header->{xmax};
+    $header->{ymin} = $stream->get_sbits($nbits) unless exists $header->{ymin};
+    $header->{ymax} = $stream->get_sbits($nbits) unless exists $header->{ymax};
+    $header->{rate} = $stream->get_UI16 / 256 unless exists $header->{rate};
+    $header->{count} = $stream->get_UI16 unless exists $header->{count};
+
+    $self->{_header_callback}->($self, @{$header}{qw(signature version filelen xmin ymin xmax ymax rate count)});
+    delete $self->{_header};
 }
 
 sub parsetag {
     my $self = shift;
-    my $tag = $self->{'_tag'};
-    my $stream = $self->{'_stream'};
-    $tag->{'header'}=$stream->get_UI16 unless exists $tag->{'header'};
-    unless (exists $tag->{'length'}) {
-	my $length = ($tag->{'header'} & 0x3f);
+    my $tag = $self->{_tag};
+    my $stream = $self->{_stream};
+    $tag->{header}=$stream->get_UI16 unless exists $tag->{header};
+    unless (exists $tag->{length}) {
+	my $length = ($tag->{header} & 0x3f);
 	$length=$stream->get_UI32 if ($length == 0x3f);
-	$tag->{'length'}=$length;
+	$tag->{length}=$length;
     }
-    unless (exists $tag->{'data'}) {
-	my $data=$stream->get_string($tag->{'length'});
-	$tag->{'data'}=SWF::BinStream::Read->new($data, sub{Carp::confess 'Short!'}, $self->{_version});
+    unless (exists $tag->{data}) {
+	my $data=$stream->get_string($tag->{length});
+	$tag->{data}=SWF::BinStream::Read->new($data, sub{Carp::confess 'Short!'}, $self->{_version});
     }
-    $self->tag($tag->{'header'} >> 6, $tag->{'length'}, $tag->{'data'});
-    $self->{'_tag'}={};
+    $self->{_tag_callback}->($self, $tag->{header} >> 6, $tag->{length}, $tag->{data});
+    $self->{_tag}={};
 }
 
-sub header {
-#    my ($self, $signature, $version, $length, $xmin, $ymin, $xmax, $ymax, $rate, $count)=@_;
-
-    $_[0]->{'_header-callback'}->(@_);
-}
-
-sub tag {
-#    my ($self, $tag, $length, $stream)=@_;
-
-    $_[0]->{'_tag-callback'}->(@_);
+sub abort {
+    shift->{_parsing} = 0;
 }
 
 1;
@@ -155,12 +154,13 @@ file. It splits SWF into a header and tags and calls user subroutines.
 
 =over 4
 
-=item SWF::Parser->new( 'header-callback' => \&headersub, 'tag-callback' => \&tagsub [, stream => $stream])
+=item SWF::Parser->new( 'header-callback' => \&headersub, 'tag-callback' => \&tagsub [, stream => $stream, header => 'no'])
 
 Creates a parser.
 The parser calls user subroutines when find SWF header and tags.
 You can set I<SWF::BinStream::Read> object as the read stream.
 If not, internal stream is used.
+If you want to parse a tag block without SWF header, set header => 'no'.
 
 =item &headersub( $self, $signature, $version, $length, $xmin, $ymin, $xmax, $ymax, $framerate, $framecount )
 
@@ -208,7 +208,10 @@ this method is usually called from I<parse> method.
 parses SWF tags and calls I<&tagsub>.
 You don't need to call this method specifically because 
 this method is usually called from I<parse> method.
-You can use this method to re-parse I<MiniFileStructure> of I<DefineSprite>.
+
+=item $parser->abort;
+
+tells the parser to abort parsing.
 
 =back
 

@@ -4,7 +4,7 @@ use strict;
 use vars qw($VERSION);
 use SWF::BinStream;
 
-$VERSION = '0.041';
+$VERSION = '0.042';
 
 package SWF::BinStream::File::Read;
 
@@ -39,10 +39,10 @@ sub open {
     my ($self, $file) = @_;
 
     $self->close if defined $self->{_file};
-    unless (ref($file) || $file =~ /^\*[\w:]+$/) {
+    unless (ref($file) or $file =~ /^\*[\w:]+$/) {
 	# Assume $file is a filename
 	local *F;
-	open(F, $file) || die "Can't open $file: $!";
+	open(F, $file) or croak "Can't open $file: $!";
 	$file = *F;
     }
     binmode $file;
@@ -98,10 +98,10 @@ sub open {
     my ($self, $file) = @_;
 
     $self->close if defined $self->{_file};
-    unless (ref($file) || $file =~ /^\*[\w:]+$/) {
+    unless (ref($file) or $file =~ /^\*[\w:]+$/) {
 	# Assume $file is a filename
 	local *F;
-	open(F, "> $file") || die "Can't open $file: $!";
+	open(F, "> $file") or croak "Can't open $file: $!";
 	$file = *F;
     }
     binmode $file;

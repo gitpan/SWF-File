@@ -3,7 +3,7 @@ package SWF::BinStream;
 use strict;
 use vars qw($VERSION);
 
-$VERSION="0.071";
+$VERSION="0.08";
 
 ##
 
@@ -15,7 +15,9 @@ use Data::TemporaryBag;
 
 sub new {
     my ($class, $initialdata, $shortsub, $version) = @_;
-    bless { '_bits'     =>'',
+    bless {
+	    '_bit_pos'  => 0,
+	    '_bit_num'  => 0,
 	    '_stream'   =>Data::TemporaryBag->new($initialdata),
 	    '_shortsub' =>$shortsub||sub{0},
 	    '_pos'      => 0,
@@ -40,7 +42,7 @@ sub add_stream {
 sub _require {
     my ($self, $bytes) = @_;
     {
-	my $len=$self->Length;
+	my $len=$self->{'_stream'}->length;
 
 	if ($len < $bytes) {
 	    $self->{'_shortsub'}->($self, $bytes-$len) and redo;
@@ -59,65 +61,103 @@ sub tell {$_[0]->{'_pos'}};
 sub get_string {
     my ($self, $bytes, $fNoFlush) = @_;
 
-    $self->flush_bits() unless $fNoFlush;
-    $self->_require($bytes);
+    flush_bits($self) unless $fNoFlush;
+    _require($self, $bytes);
     $self->{'_pos'}+=$bytes;
     $self->{'_stream'}->substr(0, $bytes, '');
 }
 
-sub _GetNum {
-    my ($self, $bytes, $template)=@_;
+sub lookahead_string {
+    my ($self, $offset, $bytes) = @_;
 
-    unpack $template, $self->get_string($bytes);
+    _require($self, $offset);
+    $self->{'_stream'}->substr($offset, $bytes);
 }
 
 sub get_UI8 {
-    $_[0]->_GetNum(1, 'C');
+    unpack 'C', get_string(shift, 1);
+}
+
+sub lookahead_UI8 {
+    unpack 'C', lookahead_string(@_[0, 1], 1);
 }
 
 sub get_SI8 {
-    $_[0]->_GetNum(1, 'c');
+    unpack 'c', get_string(shift, 1);
+}
+
+sub lookahead_SI8 {
+    unpack 'C', lookahead_string(@_[0, 1], 1);
 }
 
 sub get_UI16 {
-    $_[0]->_GetNum(2, 'v');
+    unpack 'v', get_string(shift, 2);
+}
+
+sub lookahead_UI16 {
+    unpack 'v', lookahead_string(@_[0, 1], 2);
 }
 
 sub get_SI16 {
-    my $w = $_[0]->get_UI16();
-    $w -= (1<<16) if $w>(1<<15);
+    my $w = &get_UI16;
+    $w -= (1<<16) if $w>=(1<<15);
+    $w;
+}
+
+sub lookahead_SI16 {
+    my $w = &lookahead_UI16;
+    $w -= (1<<16) if $w>=(1<<15);
     $w;
 }
 
 sub get_UI32 {
-    $_[0]->_GetNum(4, 'V');
+    unpack 'V', get_string(shift, 4);
+}
+
+sub lookahead_UI32 {
+    unpack 'V', lookahead_string(@_[0, 1], 4);
 }
 
 sub get_SI32 {
-    my $ww = $_[0]->get_UI32();
-    $ww -= (2**32) if $ww>(2**31);
+    my $ww = &get_UI32;
+    $ww -= (2**32) if $ww>=(2**31);
+    $ww;
+}
+
+sub lookahead_SI32 {
+    my $ww = &lookahead_UI32;
+    $ww -= (2**32) if $ww>=(2**31);
     $ww;
 }
 
 sub flush_bits {
-    $_[0]->{'_bits'}='';
+    my $self = shift;
+    $self->{'_bit_pos'} = 0;
+    $self->{'_bit_num'} = 0;
 }
 
 sub get_bits {
     my ($self, $bits) = @_;
-    my $len = length($self->{'_bits'});
+    my $pos = $self->{'_bit_pos'};
+    my $needbytes = (7 + $bits - $pos) >> 3;
+    my $shift = 8*$needbytes+$pos-$bits;
+    my $bitpat = ((1<<$bits) - 1) << $shift;
+    my $num = $self->{'_bit_num'};
 
-    if ( $len < $bits) {
-	my $slen = (($bits - $len - 1) >>3) + 1;
-	$self->{'_bits'}.=join '', unpack('B8' x $slen, $self->get_string($slen, 'NoFlush'));
+    if ($needbytes > 0) {
+	$num <<= (8*$needbytes);
+	$num |= unpack('N', "\0"x(4-$needbytes).get_string($self, $needbytes));
     }
-    unpack('N', pack('B32', '0' x (32-$bits).substr($self->{'_bits'}, 0, $bits, '')));
+    my $data = ($num & $bitpat) >> $shift;
+    $self->{'_bit_num'} = $num & ~$bitpat;
+    $self->{'_bit_pos'} = $shift;
+    return $data;
 }
 
 sub get_sbits {
     my ($self, $bits) = @_;
 
-    my $b = $self->get_bits($bits);
+    my $b = &get_bits;
     $b -= (2**$bits) if $b>=(2**($bits-1));
     $b;
 }
@@ -273,23 +313,16 @@ sub _round {
     return int($a+0.5*($a<=>0));
 }
 
-
-sub _SetNum {
-    my ($self, $num, $template) = @_;
-
-    $self->set_string(pack($template, _round($num)));
-}
-
 sub set_UI8 {
-    $_[0]->_SetNum($_[1], 'C');
+    $_[0]->set_string(pack('C', _round($_[1])));
 }
 
 sub set_SI8 {
-    $_[0]->_SetNum($_[1], 'c');
+    $_[0]->set_string(pack('c', _round($_[1])));
 }
 
 sub set_UI16 {
-    $_[0]->_SetNum($_[1], 'v');
+    $_[0]->set_string(pack('v', _round($_[1])));
 }
 
 *set_SI16 = \&set_UI16;
@@ -301,7 +334,7 @@ sub set_UI16 {
 #}
 
 sub set_UI32 {
-    $_[0]->_SetNum($_[1], 'V');
+    $_[0]->set_string(pack('V', _round($_[1])));
 }
 
 *set_SI32 = \&set_UI32;
@@ -545,6 +578,23 @@ Returns the $num bit unsigned number.
 =item $stream->get_sbits( $num )
 
 Returns the $num bit signed number.
+
+=item $stream->lookahead_string( $offset, $num )
+
+=item $stream->lookahead_UI8( $offset )
+
+=item $stream->lookahead_SI8( $offset )
+
+=item $stream->lookahead_UI16( $offset )
+
+=item $stream->lookahead_SI16( $offset )
+
+=item $stream->lookahead_UI32( $offset )
+
+=item $stream->lookahead_SI32( $offset )
+
+Returns the stream data $offset bytes ahead of the current read point.
+The read pointer does not move.
 
 =item $stream->flush_bits
 

@@ -1,19 +1,27 @@
 #!/usr/bin/perl
 
+use strict;
+
 use SWF::Parser;
 use SWF::Element;
+use SWF::BinStream;
 use SWF::BinStream::File;
 
-my $count = 0;
+my $frame = 0;
 
 if (@ARGV==0) {
     print STDERR <<USAGE;
 dumpswf.plx - Parse SWF file and dump it as a perl script.
   perl dumpswf.plx swfname [saveto]
+
 USAGE
 
     exit(1);
-} elsif (@ARGV==2) {
+} 
+
+my $count = 0;
+
+if (@ARGV==2) {
     open(F, ">$ARGV[1]") or die "Can't open $ARGV[1]";
     select F;
 }
@@ -23,7 +31,6 @@ use SWF::Element;
 use SWF::File;
 
 die "This script creates '$ARGV[0]' SWF file. A new file name is needed.\\n" unless \$ARGV[0];
-
 
 START
 
@@ -52,6 +59,7 @@ HEADER
 \$new = SWF::File->new("\$ARGV[0].swf", Version => $version);
 
 # $ARGV[0]  SWF header
+
 \$new->FrameSize($xmin, $ymin, $xmax, $ymax);
 \$new->FrameRate($rate);
 #\$new->FrameCount($count);
@@ -64,7 +72,7 @@ HEADER2
 sub data {
     my ($self, $tag, $length, $stream)=@_;
     my $t = SWF::Element::Tag->new(Tag=>$tag, Length=>$length);
-    my ($tagname) = ref($t)=~/:([^:]+)$/;
+    my ($tagname) = $t->tag_name;
  
     print STDERR <<BLOCK;
 Data block:$count
@@ -74,15 +82,18 @@ Length = $length
 BLOCK
     print "# Tag No.: $count\n";
     $count++;
-    my $element=SWF::Element::Tag->new(Tag=>$tag, Length=>$length);
     eval {
-	$element->unpack($stream);
+	$t->unpack($stream);
     };
     if ($@) {
 	my $mes = $@;
-	$element->dumper;
+	$t->dumper;
 	die $mes;
     }
-    $element->dumper;
+    $t->dumper;
     print "->pack(\$new);\n";
+    if ($tagname eq 'ShowFrame') {
+	print "#^------------------------------Frame No. $frame END.\n\n";
+	$frame++;
+    }
 }

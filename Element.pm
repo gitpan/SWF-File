@@ -1,6 +1,6 @@
 package SWF::Element;
 
-require v5.6.0;
+require 5.006;
 
 use strict;
 use vars qw($VERSION @ISA);
@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.25';
+$VERSION = '0.26';
 
 sub new {
     my $class = shift;
@@ -121,32 +121,40 @@ sub _default_output {print ' ' x ($_[1] * 4), $_[0]};
 sub _init {   # set attributes, parameters, etc.
 }
 
-sub pack {   # pack to SWF binary block
-    my $self = shift;
-    my $stream = shift;
-
-    for my $key ($self->element_names) {
-	if ($self->element_type($key) !~ /^\$(.*)$/) {
-	    $self->$key->pack($stream, @_);
-	} else {
-	    my $setsub = "set_$1";
-	    $stream->$setsub($self->$key);
-	}
-    }
+sub pack {
+  Carp::confess "Unexpected pack";
 }
 
-sub unpack { # unpack SWF binary block
-    my $self = shift;
-    my $stream = shift;
+sub unpack {
+  Carp::confess "Unexpected unpack";
+}
 
-    for my $key ($self->element_names) {
-	if ($self->element_type($key) !~ /^\$(.*)$/) {
-	    $self->$key->unpack($stream, @_);
+sub _create_pack {
+    my $classname = shift;
+    my $u = shift;
+    my $packsub = <<SUB_START;
+sub \{
+    my \$self = shift;
+    my \$stream = shift;
+SUB_START
+    my $unpacksub = $packsub;
+
+    no strict 'refs';
+
+    $classname = "SWF::Element::$classname";
+    for my $key ($classname->element_names) {
+	if ($classname->element_type($key) !~ /^\$(.*)$/) {
+	    $packsub .= "\$self->$key->pack(\$stream, \@_);";
+	    $unpacksub .= "\$self->$key->unpack(\$stream, \@_);";
 	} else {
-	    my $getsub = "get_$1";
-	    $self->$key($stream->$getsub);
+	    $packsub .= "\$stream->set_$1(\$self->$key);";
+	    $unpacksub .= "\$self->$key(\$stream->get_$1);";
 	}
     }
+    $packsub .='}';
+    $unpacksub .='}';
+    *{"${classname}::${u}pack"} = eval($packsub);
+    *{"${classname}::${u}unpack"} = eval($unpacksub);
 }
 
 # Utility sub to create subclass.
@@ -232,11 +240,13 @@ _create_class('RGB', '',
 	      Red   => '$UI8',
 	      Green => '$UI8',
 	      Blue  => '$UI8');
-_create_class('RGBA', '',
+_create_pack('RGB');
+_create_class('RGBA', ['', 'RGB'],
 	      Red   => '$UI8',
 	      Green => '$UI8',
 	      Blue  => '$UI8',
 	      Alpha => '$UI8');
+_create_pack('RGBA');
 _create_class('RECT', '',
 	      Xmin => '$', Ymin => '$',
 	      Xmax => '$', Ymax => '$');
@@ -279,13 +289,15 @@ _create_class('FILLSTYLE3', 'FILLSTYLE1',
 _create_class('GRADRECORD1', '',
 	      Ratio => '$UI8',
 	      Color => 'RGB');
-_create_class('GRADRECORD3', '',
+_create_pack('GRADRECORD1');
+_create_class('GRADRECORD3', 'GRADRECORD1',
 	      Ratio => '$UI8',
 	      Color => 'RGBA');
 _create_class('LINESTYLE1', '',
 	      Width => '$UI16',
 	      Color => 'RGB');
-_create_class('LINESTYLE3', '',
+_create_pack('LINESTYLE1');
+_create_class('LINESTYLE3', 'LINESTYLE1',
 	      Width => '$UI16',
 	      Color => 'RGBA');
 _create_class('SHAPE', '',
@@ -304,7 +316,7 @@ _create_class('SHAPEWITHSTYLE3', 'SHAPEWITHSTYLE2',
 	      ShapeRecords => 'Array::SHAPERECORDARRAY3');
 _create_class('SHAPERECORD1', '');
 _create_class('SHAPERECORD2', 'SHAPERECORD1');
-_create_class('SHAPERECORD3', 'SHAPERECORD1');
+_create_class('SHAPERECORD3', 'SHAPERECORD2');
 _create_class('SHAPERECORD1::STYLECHANGERECORD', 'SHAPERECORD1',
 	      MoveDeltaX => '$',
 	      MoveDeltaY => '$',
@@ -333,6 +345,7 @@ _create_class('SHAPERECORDn::CURVEDEDGERECORD',  ['SHAPERECORD1', 'SHAPERECORD2'
 	      ControlDeltaX => '$', ControlDeltaY => '$',
 	      AnchorDeltaX  => '$', AnchorDeltaY  => '$');
 _create_class('Tag', '');
+_create_class('Tag::Identified', 'Tag');
 _create_class('MORPHFILLSTYLE', '',
 	      FillStyleType       => '$UI8',
 	      StartColor          => 'RGBA',
@@ -346,9 +359,11 @@ _create_class('MORPHFILLSTYLE', '',
 _create_class('MORPHGRADRECORD', '',
 	      StartRatio => '$UI8', StartColor => 'RGBA',
 	      EndRatio   => '$UI8', EndColor   => 'RGBA');
+_create_pack('MORPHGRADRECORD');
 _create_class('MORPHLINESTYLE', '',
 	      StartWidth => '$UI16', EndWidth => '$UI16',
 	      StartColor => 'RGBA',  EndColor => 'RGBA');
+_create_pack('MORPHLINESTYLE');
 _create_class('BUTTONRECORD1', '',
 	      ButtonStates => '$UI8',
 	      CharacterID  => 'ID',
@@ -362,10 +377,12 @@ _create_class('BUTTONRECORD2', 'BUTTONRECORD1',
 	      ColorTransform => 'CXFORMWITHALPHA');
 _create_class('BUTTONCONDACTION', '',
 	      Condition => '$UI16', Actions => 'Array::ACTIONRECORDARRAY');
+_create_pack('BUTTONCONDACTION');
 _create_class('TEXTRECORD1', '');
 _create_class('TEXTRECORD2', 'TEXTRECORD1');
 _create_class('TEXTRECORD::TYPE0', ['','TEXTRECORD1','TEXTRECORD2'],
 	      GlyphEntries => 'Array::GLYPHENTRYARRAY');
+_create_pack('TEXTRECORD::TYPE0');
 _create_class('GLYPHENTRY', '',
 	      GlyphIndex => '$', GlyphAdvance => '$');
 _create_class('TEXTRECORD1::TYPE1', 'TEXTRECORD1',
@@ -388,6 +405,7 @@ _create_class('SOUNDINFO', '',
 	      EnvelopeRecords => 'Array::SOUNDENVELOPEARRAY');
 _create_class('SOUNDENVELOPE', '',
 	      Pos44 => '$UI32', LeftLevel => '$UI16', RightLevel => '$UI16');
+_create_pack('SOUNDENVELOPE');
 _create_class('ACTIONTagNumber', 'Scalar');
 _create_class('ACTIONRECORD', '',
 	      Tag        => 'ACTIONTagNumber',
@@ -409,6 +427,7 @@ _create_class('CLIPACTIONRECORD', '',
 _create_class('ASSET', '',
 	      ID     => 'ID',
 	      Name   => 'STRING');
+_create_pack('ASSET');
 
 ##########
 
@@ -538,7 +557,8 @@ sub configure {
 	} elsif (ref($p) eq 'ARRAY') {
 	    $element->configure($p);
 	} else {
-	  Carp::croak "Element type mismatch: ".ref($p)." in ".ref($self);
+#	  Carp::croak "Element type mismatch: ".ref($p)." in ".ref($self);
+	  Carp::confess "Element type mismatch: ".ref($p)." in ".ref($self);
 	}
 	push @$self, $element;
     }
@@ -629,13 +649,13 @@ sub _create_array_class {
 }
 
 _create_array_class('FILLSTYLEARRAY1', 'Array1', 'FILLSTYLE1');
-_create_array_class('FILLSTYLEARRAY2', 'Array2', 'FILLSTYLE1');
-_create_array_class('FILLSTYLEARRAY3', 'Array2', 'FILLSTYLE3');
+_create_array_class('FILLSTYLEARRAY2', ['Array2', 'Array::FILLSTYLEARRAY1'], 'FILLSTYLE1');
+_create_array_class('FILLSTYLEARRAY3', 'Array::FILLSTYLEARRAY2','FILLSTYLE3');
 _create_array_class('GRADIENT1',       'Array1', 'GRADRECORD1');
-_create_array_class('GRADIENT3',       'Array1', 'GRADRECORD3');
+_create_array_class('GRADIENT3',       'Array::GRADIENT1', 'GRADRECORD3');
 _create_array_class('LINESTYLEARRAY1', 'Array1', 'LINESTYLE1');
-_create_array_class('LINESTYLEARRAY2', 'Array2', 'LINESTYLE1');
-_create_array_class('LINESTYLEARRAY3', 'Array2', 'LINESTYLE3');
+_create_array_class('LINESTYLEARRAY2', ['Array2', 'Array::LINESTYLEARRAY1'], 'LINESTYLE1');
+_create_array_class('LINESTYLEARRAY3', 'Array::LINESTYLEARRAY2', 'LINESTYLE3');
 _create_array_class('SHAPERECORDARRAY1',  'Array',  'SHAPERECORD1',
 		    sub {$_[1]->set_bits(0,6)},
                     sub {$_[1]->isa('SWF::Element::SHAPERECORDn::ENDSHAPERECORD')});
@@ -1151,7 +1171,7 @@ sub dumper {
     my ($self, $outputsub)=@_;
     my $data = $self->value;
 
-    $data =~ s/([\\$@\"])/\\$1/gs;
+    $data =~ s/([\\\$\@\"])/\\$1/gs;
     $data =~ s/([\x00-\x1F\x80-\xFF])/sprintf('\\x%.2X', ord($1))/ges;
     $outputsub||=\&SWF::Element::_default_output;
 
@@ -1599,15 +1619,11 @@ sub pack {
 sub tag_number { undef }
 
 sub _unpack {
-    my $self = shift;
-
-    $self->SUPER::unpack(@_);
+  Carp::confess "Unexpected _unpack";
 }
 
 sub _pack {
-    my $self = shift;
-
-    $self->SUPER::pack(@_);
+  Carp::confess "Unexpected _pack";
 }
 
 
@@ -1624,9 +1640,39 @@ sub _create_tag {
 
     SWF::Element::_create_class("Tag::$tagname", "Tag::$isa", @_, 1);
 
+    my $tag_package = "SWF::Element::Tag::${tagname}";
+    my $offset = 0;
+    while (@_) {
+	my $k = shift;
+	my $v = shift;
+	my $o = 0;
+	if ($v eq 'ID' or $v eq 'Depth') {
+	    $v = 'lookahead_UI16';
+	    $o = 2;
+	} elsif ($v =~ /^\$./) {
+	    $v =~ s/^./lookahead_/;
+	    ($o) = $v=~/(\d+)$/;
+	    $o >>=3;
+	} else {
+	    last;
+	}
+	*{"${tag_package}::lookahead_$k"} = eval <<LOOKAHEAD_END;
+	sub {
+	    my (\$self, \$stream) = \@_;
+	    \$self->$k(\$stream->$v($offset));
+	}
+LOOKAHEAD_END
+	$offset += $o;
+    }
+
     $tagname[$tagno] = $tagname;
-    *{"SWF::Element::Tag::${tagname}::tag_number"} = sub {$tagno};
-    *{"SWF::Element::Tag::${tagname}::tag_name"} = sub {$tagname};
+    *{"${tag_package}::tag_number"} = sub {$tagno};
+    *{"${tag_package}::tag_name"} = sub {$tagname};
+}
+
+sub _create_pack {
+    my $tagname = shift;
+  SWF::Element::_create_pack("Tag::$tagname",'_');
 }
 
 ##  Unknown  ##
@@ -1647,18 +1693,21 @@ _create_tag('DefineShape', 2, '',
 	    ShapeID     => 'ID',
 	    ShapeBounds => 'RECT',
 	    Shapes      => 'SHAPEWITHSTYLE1');
+_create_pack('DefineShape');
 
 _create_tag('DefineShape2', 22, 'DefineShape',
 
 	    ShapeID     => 'ID',
 	    ShapeBounds => 'RECT',
 	    Shapes      => 'SHAPEWITHSTYLE2');
+_create_pack('DefineShape2');
 
 _create_tag('DefineShape3', 32, 'DefineShape',
 
 	    ShapeID     => 'ID',
 	    ShapeBounds => 'RECT',
 	    Shapes      => 'SHAPEWITHSTYLE3');
+_create_pack('DefineShape3');
 
 _create_tag('DefineMorphShape', 46, '',
 
@@ -1674,14 +1723,14 @@ _create_tag('DefineMorphShape', 46, '',
 
 _create_tag('DefineBits', 6, '',
 
-	    CharacterID=> 'ID',
-	    JPEGData   => 'BinData');
+	    CharacterID => 'ID',
+	    JPEGData    => 'BinData');
 
 _create_tag('JPEGTables', 8, '',
 
 	    JPEGData => 'BinData');
 
-_create_tag('DefineBitsJPEG2', 21, '',
+_create_tag('DefineBitsJPEG2', 21, 'DefineBits',
 
 	    CharacterID => 'ID',
 	    JPEGData    => 'BinData');
@@ -1719,6 +1768,7 @@ _create_tag('DefineButton', 7, '',
 	    ButtonID    => 'ID',
 	    Characters  => 'Array::BUTTONRECORDARRAY1',
 	    Actions     => 'Array::ACTIONRECORDARRAY');
+_create_pack('DefineButton');
 
 _create_tag('DefineButton2', 34, '',
 
@@ -1731,6 +1781,7 @@ _create_tag('DefineButtonCxform', 23, '',
 
 	    ButtonID             => 'ID',
 	    ButtonColorTransform => 'CXFORM');
+_create_pack('DefineButtonCxform');
 
 _create_tag('DefineButtonSound', 17, '',
 
@@ -1745,6 +1796,7 @@ _create_tag('DefineButtonSound', 17, '',
 _create_tag('DefineFont', 10, '',
 
 	    FontID => 'ID', GlyphShapeTable => 'Array::GLYPHSHAPEARRAY1');
+_create_pack('DefineFont');
 
 _create_tag('DefineFontInfo', 13, '',
 
@@ -1782,6 +1834,7 @@ _create_tag('DefineText', 11, '',
 	    TextBounds  => 'RECT',
 	    TextMatrix  => 'MATRIX',
 	    TextRecords => 'Array::TEXTRECORDARRAY1');
+_create_pack('DefineText');
 
 _create_tag('DefineText2', 33, 'DefineText',
 
@@ -1789,6 +1842,7 @@ _create_tag('DefineText2', 33, 'DefineText',
 	    TextBounds  => 'RECT',
 	    TextMatrix  => 'MATRIX',
 	    TextRecords => 'Array::TEXTRECORDARRAY2');
+_create_pack('DefineText2');
 
 _create_tag('DefineEditText', 37, '',
 
@@ -1820,6 +1874,7 @@ _create_tag('StartSound', 15, '',
 
 	    SoundID   => 'ID',
 	    SoundInfo => 'SOUNDINFO');
+_create_pack('StartSound');
 
 _create_tag('SoundStreamBlock', 19, '',
 
@@ -1829,6 +1884,7 @@ _create_tag('SoundStreamHead', 18, '',
 
 	    Flags                  => '$UI16',
 	    StreamSoundSampleCount => '$UI16');
+_create_pack('SoundStreamHead');
 
 _create_tag('SoundStreamHead2', 45, 'SoundStreamHead',
 
@@ -1842,7 +1898,8 @@ _create_tag('DefineSprite', 39, '',
 
 	    SpriteID    => 'ID',
 	    FrameCount  => '$UI16',
-	    ControlTags => 'Array::TAGARRAY');
+	    ControlTags => 'Array::TAGARRAY',
+	    TagStream   => 'TAGSTREAM');
 
 ##  Display list  ##
 
@@ -1868,18 +1925,22 @@ _create_tag('PlaceObject2', 26, '',
 _create_tag('RemoveObject', 5, '',
 
 	    CharacterID => 'ID', Depth => 'Depth' );
+_create_pack('RemoveObject');
 
 _create_tag('RemoveObject2', 28, '',
 
 	    Depth => 'Depth' );
+_create_pack('RemoveObject2');
 
 _create_tag('ShowFrame', 1, '');
+_create_pack('ShowFrame');
 
 ##  Control  ##
 
 _create_tag('SetBackgroundColor', 9, '',
 
 	    BackgroundColor => 'RGB' );
+_create_pack('SetBackgroundColor');
 
 _create_tag('FrameLabel', 43, '',
 
@@ -1895,33 +1956,40 @@ _create_tag('EnableDebugger', 58, '',
 
 	    Reserved => '$UI16',
 	    Password => 'STRING' );
+_create_pack('EnableDebugger');
 
 _create_tag('EnableDebugger2', 64, '',
 
 	    Reserved => '$UI16',
 	    Password => 'STRING' );
+_create_pack('EnableDebugger2');
 
 _create_tag('End', 0, '');
+_create_pack('End');
 
 _create_tag('ExportAssets', 56, '',
 
 	    Assets => 'Array::ASSETARRAY');
+_create_pack('ExportAssets');
 
 _create_tag('ImportAssets', 57, '',
 
 	    URL    => 'STRING',
 	    Assets => 'Array::ASSETARRAY');
+_create_pack('ImportAssets');
 
 ##  Actions  ##
 
 _create_tag('DoAction', 12, '',
 
 	    Actions => 'Array::ACTIONRECORDARRAY');
+_create_pack('DoAction');
 
 _create_tag('DoInitAction', 59, '',
 
 	    SpriteID => 'ID',
 	    Actions  => 'Array::ACTIONRECORDARRAY');
+_create_pack('DoInitAction');
 
 ##  Video  ##
 
@@ -1933,31 +2001,33 @@ _create_tag('DefineVideoStream', 60, '',
             Height      => '$UI16',
             VideoFlags  => '$UI8',
             CodecID     => '$UI8');
+_create_pack('DefineVideoStream');
 
 _create_tag('VideoFrame', 61, '',
 
             StreamID  => 'ID',
             FrameNum  => '$UI16',
             VideoData => 'BinData');
+_create_pack('VideoFrame');
 
 ##  others?  ##
 
 _create_tag('FreeCharacter', 3, '',
 
 	    CharacterID => 'ID');
+_create_pack('FreeCharacter');
 
 _create_tag('NameCharacter', 40, '',
 
-	    CharacterID => 'ID',
+	    ID => 'ID',
 	    Name        => 'STRING');
+_create_pack('NameCharacter');
 
 
 
 ### Identified Tag base ###
 
 package SWF::Element::Tag::Identified;
-
-@SWF::Element::Tag::Identified::ISA = ('SWF::Element::Tag');
 
 sub unpack {
     my $self = shift;
@@ -2121,6 +2191,13 @@ sub _unpack {
     $self->JPEGData->unpack($stream, $self->Length - 2);
 }
 
+sub _pack {
+    my ($self, $stream)=@_;
+
+    $self->CharacterID->pack($stream);
+    $self->JPEGData->pack($stream);
+}
+
 ##########
 
 package SWF::Element::Tag::DefineBitsJPEG2;
@@ -2236,6 +2313,12 @@ sub _unpack {
     $self->JPEGData->unpack($stream, $self->Length);
 }
 
+sub _pack {
+    my ($self, $stream)=@_;
+
+    $self->JPEGData->pack($stream);
+}
+
 ####  Buttons  ####
 
 ##########
@@ -2314,6 +2397,8 @@ sub _pack {
     $substream->flush_stream;
     $actions->pack($stream) if (@$actions>0);
 }
+
+ SWF::Element::_create_flag_accessor('TrackAsMenu', 'Flags', 0);
 
 ##########
 
@@ -2522,7 +2607,7 @@ sub _pack {
 
     $self->FontID->pack($stream);
     my $tempstream = $stream->sub_stream;
-    my $flag = $self->FontFlags & 0b1010111;
+    my $flag = ($self->FontFlags & 0b1010111);
 
     $self->FontName->pack($tempstream);
     $tempstream->set_UI16($glyphcount);
@@ -2546,9 +2631,9 @@ sub _pack {
 }
 
 {
-    my %flags = (Bold => 0, Italic => 1, WideCodes => 2, ANSI => 4, ShiftJIS => 6);
-    for my $f (keys %flags) {
-      SWF::Element::_create_flag_accessor("FontFlags$f", 'FontFlags', $flags{$f});
+    my $bit = 0;
+    for my $f (qw/ Bold Italic WideCodes WideOffsets ANSI Reserved ShiftJIS HasLayout /) {
+      SWF::Element::_create_flag_accessor("FontFlags$f", 'FontFlags', $bit++);
     }
 }
 
@@ -2736,8 +2821,8 @@ sub _pack {
 
 {
     my $bit = 1;
-    for my $f (qw/FontFlagsBold FontFlagsItalic FontFlagsANSI FontFlagsShiftJIS/) {
-      SWF::Element::_create_flag_accessor($f, 'FontFlags', $bit++);
+    for my $f (qw/ WideCodes Bold Italic ANSI ShiftJIS/) {
+      SWF::Element::_create_flag_accessor("FontFlags$f", 'FontFlags', $bit++);
     }
 }
 
@@ -2990,17 +3075,9 @@ sub _pack {
 }
 
 {
-    my %flags = (ReadOnly    =>  3,
-		 Password    =>  4,
-		 Multiline   =>  5, 
-		 WordWrap    =>  6, 
-		 UseOutlines =>  8,
-		 HTML        =>  9,
-		 Border      => 11,
-		 NoSelect    => 12,
-		 AutoSize    => 14);
-    for my $f (keys %flags) {
-      SWF::Element::_create_flag_accessor($f, 'Flags', $flags{$f});
+    my $bit = 0;
+    for my $f (qw / HasFont HasMaxLength HasTextColor ReadOnly Password Multiline WordWrap HasText UseOutlines HTML Reserved Border NoSelect HasLayout AutoSize / ) {
+      SWF::Element::_create_flag_accessor($f, 'Flags', $bit++);
     }
 }
 
@@ -3013,7 +3090,7 @@ sub unpack {
     my ($self, $stream)=@_;
     my $flags=$stream->get_UI8;
 
-    $self->SyncFlags($flags>>4);
+    $self->SyncFlags($flags);
 
     $self->InPoint($stream->get_UI32) if ($flags & 1);
     $self->OutPoint($stream->get_UI32) if ($flags & 2);
@@ -3023,7 +3100,7 @@ sub unpack {
 
 sub pack {
     my ($self, $stream)=@_;
-    my $flags=$self->SyncFlags << 4 |
+    my $flags=$self->SyncFlags |
 	      $self->EnvelopeRecords->defined << 3 |
 	      defined($self->LoopCount) << 2 |
 	      defined($self->OutPoint)  << 1 |
@@ -3036,9 +3113,12 @@ sub pack {
     $self->EnvelopeRecords->pack($stream) if ($flags & 8);
 }
 
- SWF::Element::_create_flag_accessor('SyncNoMultiple', 'SyncFlags', 0);
- SWF::Element::_create_flag_accessor('SyncStop',       'SyncFlags', 1);
-
+{
+    my $bit = 0;
+    for my $f (qw/ HasInPoint HasOutPoint HasLoops HasEnvelope SyncNoMultiple SyncStop /) {
+      SWF::Element::_create_flag_accessor($f, 'SyncFlags', $bit++);
+    }
+}
 
 ##########
 
@@ -3051,6 +3131,15 @@ sub _unpack {
     $self->Flags($stream->get_UI8);
     $self->SoundSampleCount($stream->get_UI32);
     $self->SoundData->unpack($stream, $self->Length - 7);
+}
+
+sub _pack {
+    my ($self, $stream)=@_;
+
+    $self->SoundID->pack($stream);
+    $stream->set_UI8($self->Flags);
+    $stream->set_UI32($self->SoundSampleCount);
+    $self->SoundData->pack($stream);
 }
 
 {
@@ -3071,6 +3160,12 @@ sub _unpack {
     my ($self, $stream)=@_;
 
     $self->StreamSoundData->unpack($stream, $self->Length);
+}
+
+sub _pack {
+    my ($self, $stream)=@_;
+
+    $self->StreamSoundData->pack($stream);
 }
 
 ##########
@@ -3113,7 +3208,51 @@ sub _pack {
 ####  Sprites  ####
 ##########
 
+package SWF::Element::TAGSTREAM;
+
+use SWF::Parser;
+
+@SWF::Element::TAGSTREAM::ISA = ('SWF::BinStream::Read');
+
+sub configure {
+    my ($self, $data) = @_;
+
+    $self->add_stream($data);
+}
+
+sub dumper {}
+
+sub parse {
+    my ($self, $p, $callback) = @_;
+
+    if (ref($p) eq 'CODE' and !defined $callback) {
+	$callback = $p;
+    } elsif (lc($p) ne 'callback' or ref($callback) ne 'CODE') {
+      Carp::croak "Callback subroutine is needed to parse tags of sprite";
+    }
+    my $parser = SWF::Parser->new('tag-callback' => $callback, stream => $self, header => 'no');
+    $parser->parse;
+}
+
+##########
+
 package SWF::Element::Tag::DefineSprite;
+
+sub _unpack {
+    my ($self, $stream)=@_;
+
+    $self->SpriteID->unpack($stream);
+    $self->FrameCount($stream->get_UI16);
+    $self->ControlTags->unpack($stream);
+}
+
+sub shallow_unpack {
+    my ($self, $stream) = @_;
+
+    $self->SpriteID->unpack($stream);
+    $self->FrameCount($stream->get_UI16);
+    $self->TagStream($stream->get_string($self->Length - 4));
+}
 
 sub _pack {
     my ($self, $stream)=@_;
@@ -3220,7 +3359,18 @@ sub _pack {
     }
 }
 
- SWF::Element::_create_flag_accessor('PlaceFlagMove', 'Flags', 0);
+*lookahead_CharacterID = sub {
+    my ($self, $stream) = @_;
+    $self->lookahead_Flags($stream);
+    $self->CharacterID($stream->lookahead_UI16(2)) if $self->PlaceFlagHasCharacter;
+};
+
+{
+    my $bit = 0;
+    for my $f (qw/ Move HasCharacter HasMatrix HasColorTransform HasRatio HasName HasClipDepth HasClipActions /) {
+      SWF::Element::_create_flag_accessor("PlaceFlag$f", 'Flags', $bit++);
+    }
+}
 
 ##########
 
@@ -3237,6 +3387,13 @@ sub pack {
 ##########
 
 package SWF::Element::Tag::Protect;
+
+sub _unpack {
+    my ($self, $stream) = @_;
+
+    $self->Reserved($stream->get_UI16);
+    $self->Password->unpack($stream);
+}
 
 sub _pack {
     my ($self, $stream) = @_;
@@ -3362,8 +3519,9 @@ sub new {
     my $tag = $headerdata{Tag};
 
     if (defined($tag) and $tag !~/^\d+$/) {
+	$tag = "Action$tag" unless $tag =~ /^Action/;
 	my $tag1 = $actiontagtonum{$tag};
-	Carp::croak "ACTIONRECORD '$tag1' is not defined." unless defined $tag1;
+	Carp::croak "ACTIONRECORD '$tag' is not defined." unless defined $tag1;
 	$tag = $tag1;
     }
     delete $headerdata{Tag};
@@ -3446,37 +3604,12 @@ sub pack {
     }
 }
 
-sub _pack {
-    my $self = shift;
-    my $stream = shift;
-    my @names = $self->element_names;
-    shift @names;   # remove 'Tag'
-    shift @names;   # remove 'LocalLabel'
-
-    for my $key (@names) {
-	if ($self->element_type($key) !~ /^\$(.*)$/) {
-	    $self->$key->pack($stream, @_);
-	} else {
-	    my $setsub = "set_$1";
-	    $stream->$setsub($self->$key);
-	}
-    }
+sub _unpack {
+  Carp::confess "Unexpected _unpack";
 }
 
-sub _unpack {
-    my $self = shift;
-    my $stream = shift;
-    my @names = $self->element_names;
-    shift @names;   # remove 'Tag'
-    shift @names;   # remove 'LocalLabel'
-    for my $key (@names) {
-	if ($self->element_type($key) !~ /^\$(.*)$/) {
-	    $self->$key->unpack($stream, @_);
-	} else {
-	    my $getsub = "get_$1";
-	    $self->$key($stream->$getsub);
-	}
-    }
+sub _pack {
+  Carp::confess "Unexpected _pack";
 }
 
 sub tag_name {
@@ -3491,11 +3624,43 @@ sub _create_action_tag {
     my $tagisa = shift;
     $tagisa = defined($tagisa) ? "ACTIONRECORD::_$tagisa" :  'ACTIONRECORD';
     $tagname = "Action$tagname";
-    SWF::Element::_create_class("ACTIONRECORD::$tagname", $tagisa, Tag => 'ACTIONTagNumber', LocalLabel => '$', @_);
+    SWF::Element::_create_class("ACTIONRECORD::$tagname", $tagisa, Tag => 'ACTIONTagNumber', LocalLabel => "\$", @_);
 
     $actionnumtotag{$tagno} = $tagname;
     $actiontagtonum{$tagname} = $tagno;
+
+    my $packsub = <<SUB_START;
+sub \{
+    my \$self = shift;
+    my \$stream = shift;
+SUB_START
+    my $unpacksub = $packsub;
+
+    my $classname = "SWF::Element::ACTIONRECORD::$tagname";
+    my @names = $classname->element_names;
+    shift @names;
+    shift @names;
+    for my $key (@names) {
+	if ($classname->element_type($key) !~ /^\$(.*)$/) {
+	    $packsub .= "\$self->$key->pack(\$stream, \@_);";
+	    $unpacksub .= "\$self->$key->unpack(\$stream, \@_);";
+	} else {
+	    $packsub .= "\$stream->set_$1(\$self->$key);";
+	    $unpacksub .= "\$self->$key(\$stream->get_$1);";
+	}
+    }
+    $unpacksub .='}';
+    *{"${classname}::_unpack"} = eval($unpacksub);
+
+    if ($tagisa eq 'ACTIONRECORD') {
+	$packsub .='}';
+	*{"${classname}::_pack"} = eval($packsub);
+    }
 }
+
+@SWF::Element::ACTIONRECORD::_HasSkipCount::ISA=('SWF::Element::ACTIONRECORD');
+@SWF::Element::ACTIONRECORD::_HasOffset::ISA=('SWF::Element::ACTIONRECORD');
+@SWF::Element::ACTIONRECORD::_HasCodeSize::ISA=('SWF::Element::ACTIONRECORD::_HasOffset');
 
 _create_action_tag('Unknown',  'Unknown', undef, Data       => 'BinData');  
 _create_action_tag('GotoFrame',     0x81, undef, Frame      => '$UI16');
@@ -3525,24 +3690,6 @@ _create_action_tag('DefineFunction',   0x9b, 'HasCodeSize',
 _create_action_tag('StoreRegister', 0x87, undef, Register   => '$UI8');
 _create_action_tag('With',          0x94, 'HasCodeSize',
                    CodeSize => '$UI16');
-
-##########
-
-package SWF::Element::ACTIONRECORD::_HasSkipCount;
-
-@SWF::Element::ACTIONRECORD::_HasSkipCount::ISA=('SWF::Element::ACTIONRECORD');
-
-##########
-
-package SWF::Element::ACTIONRECORD::_HasOffset;
-
-@SWF::Element::ACTIONRECORD::_HasOffset::ISA=('SWF::Element::ACTIONRECORD');
-
-##########
-
-package SWF::Element::ACTIONRECORD::_HasCodeSize;
-
-@SWF::Element::ACTIONRECORD::_HasCodeSize::ISA=('SWF::Element::ACTIONRECORD::_HasOffset');
 
 ##########
 
@@ -3613,7 +3760,7 @@ sub dumper {
 
     my $val = $self->value;
 
-    $val =~ s/([\\$@\"])/\\$1/gs;
+    $val =~ s/([\\\$\@\"])/\\$1/gs;
     $val =~ s/([\x00-\x1F\x80-\xFF])/sprintf('\\x%.2X', ord($1))/ges;
     $val = "\"$val\"" unless $val =~ /^\d+(?:\.\d+)?$/;
 
@@ -3660,35 +3807,52 @@ sub _unpack {
 }
 
 #########
+{
+    package SWF::Element::ACTIONDATA::Property;
 
-package SWF::Element::ACTIONDATA::Property;
+    my %prop_num = 
+	( _x            =>          0,
+	  _y            => 1065353216,
+          _xscale       => 1073741824,
+	  _yscale       => 1077936128,
+	  _currentframe => 1082130432,
+	  _totalframes  => 1084227584,
+	  _alpha        => 1086324736,
+	  _visible      => 1088421888,
+	  _width        => 1090519040,
+	  _height       => 1091567616,
+	  _rotation     => 1092616192,
+	  _target       => 1093664768,
+	  _framesloaded => 1094713344,
+	  _name         => 1095761920,
+	  _droptarget   => 1096810496,
+	  _url          => 1097859072,
+	  _highquality  => 1098907648,
+	  _focusrect    => 1099431936,
+	  _soundbuftime => 1099956224,
+	  _quality      => 1100480512,
+	  _xmouse       => 1101004800,
+	  _ymouse       => 1101529088,
+	  );
+    my %num_prop = reverse %prop_num;
 
-my @_actiondata_properties
-    = qw/X Y Xscale Yscale Unknown Unknown Alpha Visibility Unknown Unknown
-         Rotation Unknown Name Unknown Unknown Unknown Highquality
-         ShowFocusRectangle SoundBufferTime/;
+    sub pack {
+	my ($self, $stream) = @_;
+	my $data = $self->value;
+	
+	$stream->set_UI8(1);
+	$data = (exists $prop_num{$data}) ? $prop_num{$data} : unpack('L', CORE::pack('f', $data));
+	$stream->set_UI32($data);
 
-sub pack {
-    my ($self, $stream) = @_;
-    my $data = $self->value;
+    }
 
-    $stream->set_UI8(1);
-    if ($data !~ /^\d+$/) {
-	my $count = 0;
-	for my $name (@_actiondata_properties) {
-	    $data = $count, last if $name eq $data;
-	}
-    } 
-    $stream->set_UI32(unpack('L', CORE::pack('f', $data)));  # IEEE float support needed.
-
+    sub _unpack {
+	my ($self, $stream) = @_;
+	my $data = $stream->get_UI32;
+	$data = (exists $num_prop{$data}) ? $num_prop{$data} : unpack('f', CORE::pack('L', $data));
+	$self->configure($data);
+    }
 }
-
-sub _unpack {
-    my ($self, $stream) = @_;
-
-    $self->configure(unpack('f', CORE::pack('L', $stream->get_UI32)));  # IEEE float support needed.
-}
-
 
 #########
 
@@ -3780,26 +3944,51 @@ sub _unpack {
 }
 
 #########
+{
+    package SWF::Element::ACTIONDATA::Double; # IEEE754 double support needed.
 
-package SWF::Element::ACTIONDATA::Double;
+    my $BE = (CORE::pack('s',1) eq CORE::pack('n',1));
 
-# INTEL case.
+    sub pack {
+	my ($self, $stream) = @_;
+	
+	$stream->set_UI8(6);
+	my $value = $self->value;
+	my $data;
+	if ($value eq 'NaN') {
+	    $data = "\x00\x00\x00\x00\x00\x00\xf8\x7f";
+	} elsif ($value eq 'Infinity') {
+	    $data = "\x00\x00\x00\x00\x00\x00\xf0\x7f";
+	} elsif ($value eq '-Infinity') {
+	    $data = "\x00\x00\x00\x00\x00\x00\xf0\xff";
+	} else {
+	    $data = CORE::pack('d', $value);
+	    $data = reverse $data if $BE;
+	}
+	$stream->set_string(substr($data, -4));
+	$stream->set_string(substr($data,0,4));
+    }
 
-sub pack {
-    my ($self, $stream) = @_;
+    sub _unpack {
+	my ($self, $stream) = @_;
+	my $data = $stream->get_string(4);
+	$data = $stream->get_string(4). $data;
+	$data = reverse $data if $BE;
 
-    $stream->set_UI8(6);
-    my $data = pack('d', $self->value);
-    $stream->set_string(substr($data, -4));
-    $stream->set_string(substr($data,0,4));
-}
+	my $value = unpack('d',$data);
+	
+	if ($value =~/\#/) {
+	    if ($value =~/NAN/) {
+		$value = 'NaN';
+	    } elsif ($value =~/INF/) {
+		$value = ($value=~/-/) ? '-Infinity':'Infinity';
+	    } else {
+	      Carp::croak "Undefined number for ACTIONDATA::Double";
+	    }
+	}
+	$self->configure($value);
+    }
 
-sub _unpack {
-    my ($self, $stream) = @_;
-    my $data1 = $stream->get_string(4);
-    my $data2 = $stream->get_string(4);
-
-    $self->configure(unpack('d',$data2.$data1));
 }
 
 ##########
@@ -3895,7 +4084,7 @@ sub _label_resolve {
 		    push @{$replace[$tell>>10]}, [$tell % 1024, 2, $data];
 		}
 	    } elsif ($obj->[0] eq 'SkipCount') {
-		my $count = 0;
+		my $count = 1;
 		for my $element (@$self) {
 		    last if $element eq $obj->[1];
 		    $count++;
@@ -3939,7 +4128,7 @@ sub unpack {
 	my $action = $self->[$i];
 	if ($action->isa('SWF::Element::ACTIONRECORD::_HasSkipCount')) {
 	    my $skip = $action->SkipCount;
-	    my $dst = $self->[$i+$skip];
+	    my $dst = $self->[$i+$skip+1];
 	    if (my $l = $dst->LocalLabel) {
 		$action->SkipCount("$l#$skip");
 	    } else {

@@ -82,6 +82,7 @@ when calling with parameters, it calls I<configure> method to set the field with
 Some fields are sets of flags.  A flag is not an object but a simple scalar value, and is accessed by flag accessor method.
 When calling without value, it returns the flag value.
 When calilng with the value, it sets proper bit(s) of the I<Flags> field with the value and returns the flag value.
+Some flags are read only.
 
 =back
 
@@ -177,6 +178,8 @@ Here is the list of all subclasses representing the SWF element.
 'SWF::Element::' is omitted from each class name.
 ex. RECT means SWF::Element::RECT class.
 '$' represents a simple scalar.
+The I<field> whose class is '(Flags)' is a flag accessor handling bits in the I<Flags>.
+'-' indicates it is read only.
 See 'Macromedia Flash (SWF) File Format Specifications' for further information about SWF elements and fields.
 You can get the document from http://www.macromedia.com/software/flash/open/licensing/fileformat/ .
 
@@ -262,6 +265,15 @@ When it is unpacked from SWF stream, it is re-blessed the proper tag class.
 
 =over 4
 
+=item $tag->lookahead_I<FieldName>($stream)
+
+You can read some field from the stream before unpacking the tag by
+lookahead_I<FieldName> method.
+The field for which a lookahead method is prepared is marked with '*'
+in the lookahead column of the following tables.
+It should be run subsequently to parsing the tag header and before
+unpacking the tag data.
+
 =item $tag->tag_number
 
 returns the tag ID number.
@@ -290,9 +302,9 @@ represents the unknown tags.
 
 places the object.
 
- field           class
- CharacterID     ID
- Depth           $
+ field           class   lookahead
+ CharacterID     ID          *
+ Depth           $           *
  Matrix          MATRIX
  ColorTransform  CXFORM
 
@@ -300,17 +312,24 @@ places the object.
 
 places the object.
 
- field           class
- Flags           $
-   PlaceFlagMove (Flags)
- Depth           $
- CharacterID     ID
- Matrix          MATRIX
- ColorTramsform  CXFORMWITHALPHA
- Ratio           $
- Name            STRING
- ClipDepth       $
- ClipActions     Array::CLIPACTIONRECORDARRAY
+ field                     class    lookahead
+ Flags                     $           *
+   PlaceFlagMove           (Flags)
+ - PlaceFlagHasCharacter   (Flags)
+ - PlaceFlagHasMatrix      (Flags)
+ - PlaceFlagColorTransform (Flags)
+ - PlaceFlagHasRatio       (Flags)
+ - PlaceFlagHasName        (Flags)
+ - PlaceFlagClipDepth      (Flags)
+ - PlaceFlagClipActions    (Flags)
+ Depth                     $           *
+ CharacterID               ID          *
+ Matrix                    MATRIX
+ ColorTramsform            CXFORMWITHALPHA
+ Ratio                     $
+ Name                      STRING
+ ClipDepth                 $
+ ClipActions               Array::CLIPACTIONRECORDARRAY
 
 =item Array::CLIPACTIONRECORDARRAY
 
@@ -321,17 +340,16 @@ An array of CLIPACTIONRECORD.
 represents a clip action triggered by clip event.
 
  field                     class
- EventFlags6               $            - SWF version>=6 only
-   ClipEventKeyPress       (EventFlags6)
-   ClipEventDragOut        (EventFlags6)
  EventFlags                $
-   ClipEventDragOver       (EventFlags)
-   ClipEventRollOut        (EventFlags)
-   ClipEventRollOver       (EventFlags)
-   ClipEventReleaseOutside (EventFlags)
-   ClipEventRelease        (EventFlags)
-   ClipEventPress          (EventFlags)
-   ClipEventInitialize     (EventFlags)
+   ClipEventKeyPress       (EventFlags) - SWF6 only
+   ClipEventDragOut        (EventFlags) - SWF6 only
+   ClipEventDragOver       (EventFlags) - SWF6 only
+   ClipEventRollOut        (EventFlags) - SWF6 only
+   ClipEventRollOver       (EventFlags) - SWF6 only
+   ClipEventReleaseOutside (EventFlags) - SWF6 only
+   ClipEventRelease        (EventFlags) - SWF6 only
+   ClipEventPress          (EventFlags) - SWF6 only
+   ClipEventInitialize     (EventFlags) - SWF6 only
    ClipEventData           (EventFlags)
    ClipEventKeyUp          (EventFlags)
    ClipEventKeyDown        (EventFlags)
@@ -348,9 +366,9 @@ represents a clip action triggered by clip event.
 
 removes the object.
 
- field        class
- CharacterID  ID    - RemoveObject only
- Depth        $
+ field        class  lookahead
+ CharacterID  ID         *        - RemoveObject only
+ Depth        $          *
 
 =item Tag::ShowFrame
 
@@ -381,8 +399,8 @@ sets the frame label.
 
 prevents the file from editing in the authoring tool.
 
- field     class
- Reserved  $        always 0 (?)
+ field     class  lookahead
+ Reserved  $          *      always 0 (?)
  Password  STRING
 
 =item Tag::End
@@ -421,8 +439,8 @@ An ID and name pair of SWF character for export/import.
 enables debugging.
 EnableDebugger is for SWF 5, and EnableDebugger2 is for SWF 6.
 
- field     class
- Reserved  $        always 0 (?)
+ field     class  lookahead
+ Reserved  $          *      always 0 (?)
  Password  STRING
 
 =back
@@ -442,8 +460,8 @@ sets the frame action.
 
 performs the actions to initialize a sprite.
 
- field    class
- SpriteID ID
+ field    class      lookahead
+ SpriteID ID             *
  Actions  Array::ACTIONRECORDARRAY
 
 =item Array::ACTIONRECORDARRAY
@@ -735,8 +753,8 @@ This is common subclass of SHAPEREC1/2/3.
 defines shape. DefineShape2/3 can have more than 255 styles.
 DefineShape3 contains alpha channels.
 
- field        class
- ShapeID      ID
+ field        class     lookahead
+ ShapeID      ID            *
  ShapeBounds  RECT
  Shapes       SHAPEWITHSTYLE1 / 2 / 3
 
@@ -770,8 +788,8 @@ GRADRECORD3 has an alpha channel.
 
 defines JPEG image data.
 
- field        class
- CharacterID  ID
+ field        class    lookahead
+ CharacterID  ID           *
  JPEGImage    BinData
 
 =item Tag::JPEGTable
@@ -786,22 +804,22 @@ defines JPEG encoding table.
 defines JPEG data including both the encoding table and the image data.
 DefineBitsJPEG3 has an alpha data table.
 
- field            class
- CharacterID      ID
+ field            class    lookahead
+ CharacterID      ID           *
  JPEGData         BinData
- BitmapAlphaData  BinData - JPEG3 only.
+ BitmapAlphaData  BinData             - JPEG3 only.
 
 =item Tag::DefineBitsLossless / Tag::DefineBitsLossless2
 
 defines a loss-less bitmap.
 DefineBitsLossless2 contains alpha channels.
 
- field                 class
- CharacterID           ID
- BitmapFormat          $
- BitmapWidth           $
- BitmapHeight          $
- BitmapColorTableSize  $
+ field                 class   lookahead
+ CharacterID           ID          *
+ BitmapFormat          $           *
+ BitmapWidth           $           *
+ BitmapHeight          $           *
+ BitmapColorTableSize  $           *
  ZlibBitmapData        BinData
 
 =back
@@ -814,8 +832,8 @@ DefineBitsLossless2 contains alpha channels.
 
 defines the start and end states of a morph sequence.
 
- field            class
- CharacterID      ID
+ field            class  lookahead
+ CharacterID      ID         *
  StartBounds      RECT
  EndBounds        RECT
  MorphFillStyles  Array::MORPHFILLSTYLEARRAY
@@ -881,8 +899,8 @@ represents a line style of shapes at start and end.
 
 defines font glyphs.
 
- field            class
- FontID           ID
+ field            class        lookahead
+ FontID           ID               *
  GlyphShapeTable  GLYPHSHAPEARRAY1
 
 =item Array::GLYPHSHAPEARRAY1 / 2
@@ -893,38 +911,42 @@ An array of SHAPE.
 
 defines font information.
 
- field                class
- FontID               ID
+ field                class    lookahead
+ FontID               ID           *
  FontName             PSTRING
  FontFlags            $
    FontFlagsShiftJIS  (FontFlags)
    FontFlagsANSI      (FontFlags)
    FontFlagsItalic    (FontFlags)
    FontFlagsBold      (FontFlags)
- LanguageCode         $            - DefineFontInfo2 only
+ - FontFlagsWideCodes (FontFlags)
+ LanguageCode         $                 - DefineFontInfo2 only
  CodeTable            Array::FONTCODETABLE
 
 =item Tag::DefineFont2
 
 defines font glyphs and other information.
 
- field                class
- FontID               ID
- FontFlags            $
-   FontFlagsShiftJIS  (FontFlags)
-   FontFlagsANSI      (FontFlags)
-   FontFlagsItalic    (FontFlags)
-   FontFlagsBold      (FontFlags)
- LanguageCode         $
- FontName             PSTRING
- GlyphShapeTable      Array::GLYPHSHAPEARRAY2
- CodeTable            Array::FONTCODETABLE
- FontAscent           $
- FontDescent          $
- FontLeading          $
- FontAdvanceTable     Array::FONTADVANCETABLE
- FontBoundsTable      Array::FONTBOUNDSTABLE
- FontKerningTable     FONTKERNINGTABLE
+ field                  class       lookahead
+ FontID                 ID              *
+ FontFlags              $               *
+ - FontFlagsHasLayout   (FontFlags)
+   FontFlagsShiftJIS    (FontFlags)
+   FontFlagsANSI        (FontFlags)
+ - FontFlagsWideOffsets (FontFlags)
+ - FontFlagsWideCodes   (FontFlags)
+   FontFlagsItalic      (FontFlags)
+   FontFlagsBold        (FontFlags)
+ LanguageCode           $               *
+ FontName               PSTRING
+ GlyphShapeTable        Array::GLYPHSHAPEARRAY2
+ CodeTable              Array::FONTCODETABLE
+ FontAscent             $
+ FontDescent            $
+ FontLeading            $
+ FontAdvanceTable       Array::FONTADVANCETABLE
+ FontBoundsTable        Array::FONTBOUNDSTABLE
+ FontKerningTable       FONTKERNINGTABLE
 
 =item Array::FONTCODETABLE / FONTADVANCETABLE / FONTBOUNDSTABLE
 
@@ -951,8 +973,8 @@ When calling with the list of a kerning pair and its adjustment, it adds the ker
 
 defines text.
 
- field         class
- CharacterID   ID
+ field         class   lookahead
+ CharacterID   ID          *
  TextBounds    RECT
  TextMatrix    MATRIX
  TextRecords   Array::TEXTRECORDARRAY1 / 2
@@ -1001,30 +1023,34 @@ represents a glyph entry for a letter of the text.
 
 defines an edit box.
 
- field         class
- CharacterID   ID
- Bounds        RECT
- Flags         $
-   WordWrap    (Flags)
-   Multiline   (Flags)
-   Password    (Flags)
-   ReadOnly    (Flags)
-   AutoSize    (Flags)
-   NoSelect    (Flags)
-   Border      (Flags)
-   HTML        (Flags)
-   UseOutlines (Flags)
- FontID        ID
- FontHeight    $
- TextColor     RGBA
- MaxLength     $
- Align         $
- LeftMargin    $
- RightMargin   $
- Indent        $
- Leading       $
- VariableName  STRING
- InitialText   STRING
+ field          class   lookahead
+ CharacterID    ID          *
+ Bounds         RECT
+ Flags          $
+   WordWrap     (Flags)
+   Multiline    (Flags)
+   Password     (Flags)
+   ReadOnly     (Flags)
+ - HasTextColor (Flags)
+ - HasMaxLength (Flags)
+ - HasFont      (Flags)
+   AutoSize     (Flags)
+ - HasLayout    (Flags)
+   NoSelect     (Flags)
+   Border       (Flags)
+   HTML         (Flags)
+   UseOutlines  (Flags)
+ FontID         ID
+ FontHeight     $
+ TextColor      RGBA
+ MaxLength      $
+ Align          $
+ LeftMargin     $
+ RightMargin    $
+ Indent         $
+ Leading        $
+ VariableName   STRING
+ InitialText    STRING
 
 =back
 
@@ -1036,22 +1062,22 @@ defines an edit box.
 
 defines sound.
 
- field             class
- SoundID           ID
- Flags             $
+ field             class    lookahead
+ SoundID           ID           *
+ Flags             $            *
    SoundFormat     (Flags)
    SoundRate       (Flags)
    SoundSize       (Flags)
    SoundType       (Flags)
- SoundSampleCount  $
+ SoundSampleCount  $            *
  SoundData         BinData
 
 =item Tag::StartSound
 
 starts playing sound.
 
- field      class
- SoundID    ID
+ field      class      lookahead
+ SoundID    ID             *
  SoundInfo  SOUNDINFO
 
 =item SOUNDINFO
@@ -1060,6 +1086,10 @@ represents sound information.
 
  field            class
  SyncFlags        $
+ - HasInPoint     (SyncFlags)
+ - HasOutPoint    (SyncFlags)
+ - HasLoops       (SyncFlags)
+ - HasEnvelope    (SyncFlags)
    SyncNoMultiple (SyncFlags)
    SyncStop       (SyncFlags)
  InPoint          $
@@ -1084,8 +1114,8 @@ represents sound envelope information.
 
 defines the format of streaming sound.
 
- field                    class
- Flags                    $
+ field                    class   lookahead
+ Flags                    $           *
    PlaybackSoundRate      (Flags)
    PlaybackSoundSize      (Flags)
    PlaybackSoundType      (Flags)
@@ -1093,8 +1123,8 @@ defines the format of streaming sound.
    StreamSoundRate        (Flags)
    StreamSoundSize        (Flags)
    StreamSoundType        (Flags)
- StreamSoundSampleCount   $
- LatencySeek              $        - SoundStreamHead2 only
+ StreamSoundSampleCount   $           *
+ LatencySeek              $           *      - SoundStreamHead2 only
 
 =item Tag::SoundStreamBlock
 
@@ -1133,8 +1163,8 @@ represents a button character and associated button states.
 
 defines a button character.
 
- field       class
- ButtonID    ID
+ field       class                      lookahead
+ ButtonID    ID                             *
  Characters  Array::BUTTONRECORDARRAY1
  Actions     Array::ACTIONRECORDARRAY
 
@@ -1142,11 +1172,12 @@ defines a button character.
 
 defines a button character which has the actions triggered by any state stansition.
 
- field       class
- ButtonID    ID
- Flags       $
- Characters  Array::BUTTONRECORDARRAY2
- Actions     Array::BUTTONCONDACTIONARRAY
+ field         class                      lookahead
+ ButtonID      ID                             *
+ Flags         $                              *
+   TrackAsMenu (Flags)
+ Characters    Array::BUTTONRECORDARRAY2
+ Actions       Array::BUTTONCONDACTIONARRAY
 
 =item Array::BUTTONCONDACTIONARRAY
 
@@ -1174,17 +1205,17 @@ represents actions and a button states condition which triggers off the actions.
 
 defines the color transform for each shape and text character in a button.
 
- field                 class
- ButtonID              ID
+ field                 class  lookahead
+ ButtonID              ID         *
  ButtonColorTransform  CXFORM
 
 =item Tag::DefineButtonSound
 
 defines the sound data for a button.
 
- field             class
- ButtonID          ID
- ButtonSoundChar0  ID
+ field             class      lookahead
+ ButtonID          ID             *
+ ButtonSoundChar0  ID             *
  ButtonSoundInfo0  SOUNDINFO
  ButtonSoundChar1  ID
  ButtonSoundInfo1  SOUNDINFO
@@ -1203,14 +1234,37 @@ defines the sound data for a button.
 
 defines a sprite.
 
- field              class
- SpriteID           ID
- FrameCount         $
+ field              class           lookahead
+ SpriteID           ID                  *
+ FrameCount         $                   *
  ControlTags        Array::TAGARRAY
+ (TagStream)        TAGSTREAM
+
+=over 4
+
+=item $sprite->shallow_unpack($stream)
+
+unpacks SpriteID and FrameCount from the stream,
+and prepare TagStream to parse later instead of unpacking all ControlTags.
+
+=back
 
 =item Array::TAGARRAY
 
 An array of SWF tags.
+
+=item TAGSTREAM
+
+A stream of the tags.
+
+=over 4
+
+=item $tagstream->parse( \&callback )
+
+parses the tag stream and calls &callback sub.
+See L<SWF::Parser> for details of the tag callback sub.
+
+=back
 
 =back
 
@@ -1222,21 +1276,21 @@ An array of SWF tags.
 
 defines a video character.
 
-  field        class
-  CharacterID  ID
-  NumFrames    $
-  Width        $
-  Height       $
-  VideoFlags   $
-  CodecID      $
+  field        class  lookahead
+  CharacterID  ID         *
+  NumFrames    $          *
+  Width        $          *
+  Height       $          *
+  VideoFlags   $          *
+  CodecID      $          *
 
 =item Tag::VideoFrame
 
 provides a single frame of video data for a video character.
 
-  field      class
-  StreamID   ID
-  FrameNum   $
+  field      class   lookahead
+  StreamID   ID          *
+  FrameNum   $           *
   VideoData  BinData
 
 =back
