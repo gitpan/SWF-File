@@ -1,12 +1,16 @@
-package SWF::BinStream::File::Read;
+package SWF::BinStream::File;
 
 use strict;
-use vars qw($VERSION @ISA);
-
+use vars qw($VERSION);
 use SWF::BinStream;
-use Carp;
 
-$VERSION = '0.01';
+$VERSION = '0.02';
+
+package SWF::BinStream::File::Read;
+
+use Carp;
+use vars qw(@ISA);
+
 @ISA = ('SWF::BinStream::Read');
 
 sub new {
@@ -68,13 +72,9 @@ sub DESTROY {
 
 package SWF::BinStream::File::Write;
 
-use strict;
-use vars qw($VERSION @ISA);
-
-use SWF::BinStream;
 use Carp;
+use vars qw(@ISA);
 
-$VERSION = '0.01';
 @ISA = ('SWF::BinStream::Write');
 
 sub new {
@@ -134,8 +134,7 @@ __END__
 
 =head1 NAME
 
-SWF::BinStream::File::Read
-SWF::BinStream::File::Write - Read and write file as binary stream.
+SWF::BinStream::File - Read and write file as binary stream.
 
 =head1 SYNOPSIS
 

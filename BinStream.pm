@@ -1,11 +1,17 @@
-package SWF::BinStream::Read;
+package SWF::BinStream;
 
 use strict;
 use vars qw($VERSION);
+
+$VERSION="0.04";
+
+##
+
+package SWF::BinStream::Read;
+
 use Carp;
 use Data::TemporaryBag;
 
-$VERSION="0.03";
 
 sub new {
     my ($class, $initialdata, $shortsub) = @_;
@@ -112,12 +118,8 @@ sub get_sbits {
 
 package SWF::BinStream::Write;
 
-use strict;
-use vars qw($VERSION);
 use Carp;
 use Data::TemporaryBag;
-
-$VERSION="0.03";
 
 sub new {
     my ($class) = @_;
@@ -344,8 +346,7 @@ __END__
 
 =head1 NAME
 
-SWF::BinStream::Read
-SWF::BinStream::Write - Read and write binary stream.
+SWF::BinStream - Read and write binary stream.
 
 =head1 SYNOPSIS
 

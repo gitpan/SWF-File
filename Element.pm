@@ -6,7 +6,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 sub new {
     my $class = shift;
@@ -105,6 +105,7 @@ sub dumper {
     my ($self, $outputsub, $indent)=@_;
     my @names=$self->element_names;
 
+    $indent||=0;
     $outputsub||=\&_default_output;
 
     &$outputsub(ref($self)."->new(\n", 0);
@@ -474,17 +475,19 @@ ENDPACKAGE
 package SWF::Element::Array;
 
 sub new {
-    my $class=shift;
-    my $self=shift||[];
+    my $class = shift;
+    my $self = [];
+
     bless $self, ref($class)||$class;
     $self->_init;
+    $self->configure(@_) if @_;
+
     $self;
 }
 
 sub configure {
     my ($self, @param)=@_;
-    @param = @{$param[0]} if (ref($param[0]) eq 'ARRAY');
-
+    @param = @{$param[0]} if (ref($param[0]) eq 'ARRAY' and ref($param[0][0]));
     for my $p (@param) {
 	my $element = $self->new_element;
 	if (eval{$p->isa(ref($element))}) {
@@ -3037,7 +3040,8 @@ use vars qw/%actiontagtonum %actionnumtotag/;
 %actionnumtotag= reverse %actiontagtonum;
 
 sub new {
-    my ($class, %headerdata)=@_;
+    my ($class, @headerdata)=@_;
+    my %headerdata = ref($headerdata[0]) eq 'ARRAY' ? @{$headerdata[0]} : @headerdata;
     my $self = {};
     my $tag = $headerdata{Tag};
 
@@ -3062,6 +3066,7 @@ sub _init {}
 
 sub configure {
     my ($self, @param)=@_;
+    @param = @{$param[0]} if ref($param[0]) eq 'ARRAY';
     my %param=@param;
 
     if (defined $param{Tag}) {
@@ -3077,7 +3082,7 @@ sub configure {
 	bless $self, _action_class($tag);
 	$self->_init;
     }
-    $self->SUPER::configure(@param);
+    $self->SUPER::configure(%param);
 }
  
 sub _action_class {

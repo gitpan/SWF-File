@@ -34,3 +34,12 @@ Revision history for Perl extension SWF::*.
        Others
         - Added SWF::File and SWF::BinStream::File.
         - makefdb.plx is no longer supported.
+
+0.04  Mon Dec  3 22:02:00 2001
+       SWF::Element
+	- Bug fixed in using array reference to set element.
+	- Minor fix to pass -w.
+       SWF::BinStream
+	- Fixed POD.
+       SWF::BinStream::File
+	- Fixed POD.
