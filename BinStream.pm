@@ -1,0 +1,607 @@
+package SWF::BinStream::Read;
+
+use strict;
+use vars qw($VERSION);
+use Carp;
+use Data::TemporaryBag;
+
+$VERSION="0.03";
+
+sub new {
+    my ($class, $initialdata, $shortsub) = @_;
+    bless { '_bits'    =>'',
+	    '_stream'  =>Data::TemporaryBag->new($initialdata),
+	    '_shortsub'    =>$shortsub||sub{0},
+	    '_pos'     => 0,
+	  }, $class;
+}
+
+sub add_stream {
+    my $self = $_[0];
+    $self->{'_stream'}->add($_[1]);
+}
+
+sub _short {
+    my ($self, $b)=@_;
+    $self->{'_shortsub'}->($self, $b);
+}
+
+sub require {
+    my ($self, $bytes) = @_;
+    {
+	my $len=$self->Length;
+
+	if ($len < $bytes) {
+	    $self->_short($bytes-$len) and redo;
+	    croak "Stream ran short ";
+	}
+    }
+}
+
+sub Length {
+    return $_[0]->{'_stream'}->length;
+}
+
+sub tell {$_[0]->{'_pos'}};
+
+sub get_string {
+    my ($self, $bytes, $fNoFlush) = @_;
+
+    $self->flush_bits() unless $fNoFlush;
+    $self->require($bytes);
+    $self->{'_pos'}+=$bytes;
+    $self->{'_stream'}->substr(0, $bytes, '');
+}
+
+sub _GetNum {
+    my ($self, $bytes, $template)=@_;
+
+    unpack $template, $self->get_string($bytes);
+}
+
+sub get_UI8 {
+    $_[0]->_GetNum(1, 'C');
+}
+
+sub get_SI8 {
+    $_[0]->_GetNum(1, 'c');
+}
+
+sub get_UI16 {
+    $_[0]->_GetNum(2, 'v');
+}
+
+sub get_SI16 {
+    my $w = $_[0]->get_UI16();
+    $w -= (1<<16) if $w>(1<<15);
+    $w;
+}
+
+sub get_UI32 {
+    $_[0]->_GetNum(4, 'V');
+}
+
+sub get_SI32 {
+    my $ww = $_[0]->get_UI32();
+    $ww -= (2**32) if $ww>(2**31);
+    $ww;
+}
+
+sub flush_bits {
+    $_[0]->{'_bits'}='';
+}
+
+sub get_bits {
+    my ($self, $bits) = @_;
+
+    while (length($self->{'_bits'}) < $bits) {
+	$self->{'_bits'}.=unpack('B8', $self->get_string(1, 'NoFlush'));
+    }
+    unpack('N', pack('B32', '0' x (32-$bits).substr($self->{'_bits'}, 0, $bits, '')));
+}
+
+sub get_sbits {
+    my ($self, $bits) = @_;
+
+    my $b = $self->get_bits($bits);
+    $b-=(2**$bits) if $b>=(2**($bits-1));
+    $b;
+}
+
+1;
+
+package SWF::BinStream::Write;
+
+use strict;
+use vars qw($VERSION);
+use Carp;
+use Data::TemporaryBag;
+
+$VERSION="0.03";
+
+sub new {
+    my ($class) = @_;
+    bless { '_bits'    => '',
+	    '_stream'  => Data::TemporaryBag->new,
+	    '_pos' => 0,
+	    '_mark' => {},
+	  }, $class;
+}
+
+sub autoflush {
+    my ($self, $size, $flushsub)=@_;
+
+    $self->{'_flushsize'}=$size;
+    $self->{'_flushsub'}=$flushsub;
+}
+
+sub _CheckFlush {
+    my $self = shift;
+
+    if ($self->{'_flushsize'}>0 and $self->{'_stream'}->length >= $self->{'_flushsize'}) {
+	my $sub=$self->{'_flushsub'};
+	$self->flush_stream($self->{'_flushsize'});
+    }
+}
+
+sub flush_stream {
+    my ($self, $size)=@_;
+    my $str;
+
+    if ( !$size or $size>$self->Length ) {
+	$self->flush_bits;
+    }
+
+    if ($size) {
+	$str = $self->{'_stream'}->substr( 0, $size, '');
+	$self->{'_pos'} += length($str);
+    } else {
+	$str=$self->{'_stream'}->value;
+	$self->{'_pos'}+=length($str);
+	$self->{'_stream'}=Data::TemporaryBag->new;
+    }
+    $self->{'_flushsub'}->($self, $str) if defined $self->{'_flushsub'};
+    $str;
+}
+
+sub flush_bits {
+    my $self = $_[0];
+    my $bits = $self->{'_bits'};
+    my $len  = length($bits);
+
+    return if $len<=0;
+    $self->{'_bits'}='';
+    $self->{'_stream'}->add(pack('B8', $bits.('0'x(8-$len))));
+    $self->_CheckFlush();
+}
+
+sub Length {
+    return $_[0]->{'_stream'}->length;
+}
+
+sub tell {
+    my $self=shift;
+    my $pos= $self->{'_pos'} + $self->Length;
+    $pos++ if length($self->{'_bits'})>0;
+    $pos;
+}
+
+sub mark {
+    my ($self, $key, $obj)=@_;
+
+    if (not defined $key) {
+	return %{$self->{_mark}};
+    } elsif (not defined $obj) {
+	return wantarray ? $self->{_mark}{$key}[0] : @{$self->{_mark}{$key}};
+    } else {
+	$self->{_mark}{$key}=[$self->tell, $obj];
+    }
+}
+
+sub sub_stream {
+    my $self=shift;
+    my $sub_stream=SWF::BinStream::Write->new;
+    $sub_stream->{_parent}=$self;
+    bless $sub_stream, 'SWF::BinStream::Write::SubStream';
+}
+
+sub set_string {
+    my ($self, $str) = @_;
+
+    $self->flush_bits;
+    $self->{'_stream'}->add($str);
+    $self->_CheckFlush();
+}
+
+sub _round {
+    my $a=shift;
+
+    $a||=0;
+    return int($a+0.5*($a<=>0));
+}
+
+
+sub _SetNum {
+    my ($self, $num, $template) = @_;
+
+    $self->set_string(pack($template, _round($num)));
+}
+
+sub set_UI8 {
+    $_[0]->_SetNum($_[1], 'C');
+}
+
+sub set_SI8 {
+    $_[0]->_SetNum($_[1], 'c');
+}
+
+sub set_UI16 {
+    $_[0]->_SetNum($_[1], 'v');
+}
+
+sub set_SI16 {
+    my ($self, $num) = @_;
+    $num += (1<<16) if $num<0;
+    $self->set_UI16($num);
+}
+
+sub set_UI32 {
+    $_[0]->_SetNum($_[1], 'V');
+}
+
+sub set_SI32 {
+    my ($self, $num) = @_;
+    $num += (2**32) if $num<0;
+    $self->set_UI32($num);
+}
+
+sub set_bits {
+    my ($self, $num, $nbits) = @_;
+    return if $nbits==0;
+    $self->{'_bits'} .= substr(unpack('B*',pack('N', _round($num))), -$nbits);
+    while (length($self->{'_bits'})>=8) {
+	$self->{'_stream'}->add( pack('B8', substr($self->{'_bits'}, 0,8, '')));
+    }
+}
+
+sub set_sbits {
+    my ($self, $num, $nbits) = @_;
+    $num=_round($num);
+    $num += (2**$nbits) if $num<0;
+    $self->set_bits($num, $nbits);
+}
+
+sub set_bits_list {
+    my ($self, $nbitsbit, @param) = @_;
+    my $nbits=get_maxbits_of_bits_list(@param);
+    my $i;
+
+    $self->set_bits($nbits, $nbitsbit);
+    foreach $i (@param) {
+	$self->set_bits($i, $nbits);
+    }
+}
+
+sub set_sbits_list {
+    my ($self, $nbitsbit, @param) = @_;
+    my $nbits=get_maxbits_of_sbits_list(@param);
+    my $i;
+
+    $self->set_bits($nbits, $nbitsbit);
+    foreach $i (@param) {
+	$self->set_sbits($i, $nbits);
+    }
+}
+
+sub get_maxbits_of_bits_list {
+    my (@param)=@_;
+    my $max=$param[0];
+    my $i;
+
+    foreach $i(@param) {
+	$max=$i if $max<$i;
+    }
+    $i = 0;
+    $i++ while ($max >= 2**$i);
+    return $i;
+}
+
+sub get_maxbits_of_sbits_list {
+    my $z = 0;
+    return (get_maxbits_of_bits_list(map{my $r=_round($_);$z ||= ($r!=0);($r<0)?(~$r):$r} @_)+$z);
+}
+
+package SWF::BinStream::Write::SubStream;
+
+use vars qw(@ISA);
+
+@ISA=('SWF::BinStream::Write');
+
+sub flush_stream {
+    my $self = shift;
+    my $p_tell = $self->{_parent}->tell;
+
+    while ((my $data = $self->SUPER::flush_stream(1024)) ne '') {
+	$self->{_parent}->set_string($data);
+    }
+
+    my @marks=$self->mark;
+    while (@marks) {
+	my $key = shift @marks;
+	my $mark = shift @marks;
+	$mark->[0] += $p_tell;
+	$self->{_parent}->mark($key, @$mark);
+    }
+    undef $self;
+}
+
+sub autoflush {} # Ignore autoflush.
+sub _CheckFlush {}
+
+1;
+
+__END__
+
+=head1 NAME
+
+SWF::BinStream::Read
+SWF::BinStream::Write - Read and write binary stream.
+
+=head1 SYNOPSIS
+
+  use SWF::BinStream;
+
+  $read_stream = SWF::BinStream::Read->new($binary_data, \&adddata);
+  $byte = $read_stream->get_UI8;
+  $signedbyte = $read_stream->get_SI8;
+  $string = $read_stream->get_string($length);
+  $bits = $read_stream->get_bits($bitlength);
+  ....
+
+  sub adddata {
+      if ($nextdata) {
+	  shift->add_stream($nextdata);
+      } else {
+	  die "The stream ran short ";
+      }
+  }
+
+  $write_stream = SWF::BinStream::Write->new;
+  $write_stream->set_UI8($byte);
+  $write_stream->set_SI8($signedbyte);
+  $write_stream->set_string($string);
+  $write_stream->set_bits($bits, $bitlength);
+  $binary_data=$write_stream->flush_stream;
+  ....
+
+=head1 DESCRIPTION
+
+I<SWF::BinStream> module provides a binary byte and bit data stream.
+It can handle bit-compressed data such as SWF file.
+
+=head2 SWF::BinStream::Read
+
+Provides a read stream. Add the binary data to the stream, and you 
+get byte and bit data. The stream calls a user subroutine when the 
+stream data runs short.
+I<get_UI16>, I<get_SI16>, I<get_UI32>, and I<get_SI32> get a number
+in VAX byte order from the stream.
+I<get_bits> and I<get_sbits> get the bits from MSB to LSB.
+I<get_UI*>, I<get_SI*>, and I<get_string> skip the remaining bits in 
+the current byte and read data from the next byte.
+If you want to skip remaining bits manually, use I<flush_bits>.
+
+=head2 METHODS
+
+=over 4
+
+=item SWF::BinStream::Read->new( [ $initialdata, \&callback_in_short ] )
+
+Creates a read stream. It takes two optional arguments. The first arg 
+is a binary string to set as initial data of the stream. The second is
+a reference of a subroutine which is called when the stream data runs
+short.  The subroutine is called with two ARGS, the first is I<$stream>
+itself, and the second is how many bytes wanted.
+
+=item $stream->add_stream( $binary_data )
+
+Adds binary data to the stream.
+
+=item $stream->require( $num )
+
+Requires to keep $num bytes data to the stream. Then you can
+get $num bytes from the stream without short.
+
+=item $stream->Length
+
+Returns how many bytes remain in the stream.
+
+=item $stream->tell
+
+Returns how many bytes have been read from the stream.
+
+=item $stream->get_string( $num )
+
+Returns $num bytes as a string.
+
+=item $stream->get_UI8
+
+Returns an unsigned byte number.
+
+=item $stream->get_SI8
+
+Returns a signed byte number.
+
+=item $stream->get_UI16
+
+Returns an unsigned word (2 bytes) number.
+
+=item $stream->get_SI16
+
+Returns a signed word (2 bytes) number.
+
+=item $stream->get_UI32
+
+Returns an unsigned double word (4 bytes) number.
+
+=item $stream->get_SI32
+
+Returns a signed double word (4 bytes) number.
+
+=item $stream->get_bits( $num )
+
+Returns the $num bit unsigned number.
+
+=item $stream->get_sbits( $num )
+
+Returns the $num bit signed number.
+
+=item $stream->flush_bits
+
+Skips the rest bits in the byte and aligned read pointer to the next byte.
+It does not anything when the read pointer already byte-aligned.
+
+=back
+
+=head2 SWF::BinStream::Write
+
+Provides a write stream. Write byte and bit data, then get the stream
+data as binary string using I<flush_stream>. I<autoflush> requests to
+the stream to automatically flush the stream and call a user subroutine.
+I<set_UI16>, I<set_SI16>, I<set_UI32>, and I<set_SI32> write a number in 
+VAX byte order to the stream.
+I<set_bits> and I<set_sbits> write the bits from MSB to LSB.
+I<set_UI*>, I<set_SI*>, and I<set_string> set the rest bits in the last 
+byte to 0 and write data to the next byte boundary.
+If you want to write bit data and align the write pointer to byte boundary,
+use I<flush_bits>.
+
+=head2 METHODS
+
+=over 4
+
+=item SWF::BinStream::Write->new
+
+Creates a write stream.
+
+=item $stream->autoflush( $size, \&callback_when_flush )
+
+Requests to the stream to automatically flush the stream and call sub
+with the stream data when the stream size becomes larger than I<$size> bytes.
+
+=item $stream->flush_stream( [$size] )
+
+Flushes the stream and returns the stream data. Call with I<$size>,
+it returns I<$size> bytes from the stream. When call without arg or
+with larger I<$size> than the stream data size, it returns all data
+including the last bit data ( by calling I<flush_bits> internally).
+
+=item $stream->flush_bits
+
+Sets the rest bits in the last byte to 0, and aligns write pointer 
+to the next byte boundary.
+
+=item $stream->Length
+
+Returns how many bytes remain in the stream.
+
+=item $stream->tell
+
+Returns how many bytes have written.
+
+=item $stream->mark( [$key, [$obj]] )
+
+Keeps current I<tell> number with $key and $obj.
+When called without $obj, it returns I<tell> number associated
+with $key and a list of I<tell> number and object in scalar and 
+list context, respectively.
+When called without any parameter, it returns mark list
+( KEY1, [ TELL_NUMBER1, OBJ1 ], KEY2, [...).
+
+=item $stream->sub_stream
+
+Creates temporaly sub stream. When I<flush_stream> the sub stream, 
+it's data and marks are written to the parent stream and the sub 
+stream is freed.
+
+Ex. write various length of data following it's length.
+
+  $sub_stream=$parent_stream->sub_stream;
+  write_data($sub_stream);
+  $parent_stream->set_UI32($sub_stream->Length);
+  $sub_stream->flush_stream;
+
+=item $stream->set_string( $str )
+
+Writes string to the stream.
+
+=item $stream->set_UI8( $num )
+
+Writes I<$num> as an unsigned byte.
+
+=item $stream->set_SI8( $num )
+
+Writes I<$num> as a signed byte.
+
+=item $stream->set_UI16( $num )
+
+Writes I<$num> as an unsigned word.
+
+=item $stream->set_SI16( $num )
+
+Writes I<$num> as a signed word.
+
+=item $stream->set_UI32( $num )
+
+Writes I<$num> as an unsigned double word.
+
+=item $stream->set_SI32( $num )
+
+Writes I<$num> as an unsigned double word.
+
+=item $stream->set_bits( $num, $nbits )
+
+Write I<$num> as I<$nbits> length unsigned bit data.
+
+=item $stream->set_sbits( $num, $nbits )
+
+Write I<$num> as I<$nbits> length signed bit data.
+
+=item $stream->set_bits_list( $nbitsbit, @list )
+
+Makes I<@list> as unsigned bit data list.
+It writes the maximal bit length of each I<@list> (I<nbits>) as
+I<$nbitsbit> length unsigned bit data, and then writes each I<@list>
+number as I<nbits> length unsigned bit data.
+
+=item $stream->set_sbits_list( $nbitsbit, @list )
+
+Makes I<@list> as signed bit data list.
+It writes the maximal bit length of each I<@list> (I<nbits>) as
+I<$nbitsbit> length unsigned bit data, and then writes each I<@list>
+number as I<nbits>-length signed bit data.
+
+=back
+
+=head2 UTILITY FUNCTIONS
+
+=item &SWF::BinStream::Write::get_maxbits_of_bits_list( @list )
+
+=item &SWF::BinStream::Write::get_maxbits_of_sbits_list( @list )
+
+Gets the necessary and sufficient bit length to represent the values of 
+I<@list>.  -_bits_list is for unsigned values, and -_sbits_list is for signed.
+
+=back
+
+=head1 COPYRIGHT
+
+Copyright 2000 Yasuhiro Sasama (ySas), <ysas@nmt.ne.jp>
+
+This library is free software; you can redistribute it
+and/or modify it under the same terms as Perl itself.
+
+=cut
+
+
+

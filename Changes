@@ -1,0 +1,36 @@
+Revision history for Perl extension SWF::*.
+
+0.01  Sun Dec 24 22:00:00 2000
+	- original version; created by h2xs 1.19
+
+0.02  Tue Aug 28 02:30:00 2001
+        - Some Bug fixed in SWF::Element.
+        - Add 'scale', 'rotate', and 'translate' method to 
+          SWF::Element::MATRIX.
+
+0.03  Fri Nov 30 00:00:00 2001
+       SWF::Element
+        - Many Bug fixed.
+        - Rewrote and split POD.
+        - Rewrote source and changed the internal class structure.
+        - Added Flash5 actionscript support.
+       SWF::Parser
+        - Now parse frame rate in SWF header correctly.
+        - Fixed mistakes of POD about callback subroutines. 
+       SWF::BinStream
+        - Capitalized name of all method except 'Length' now changed into
+          small letter and underscore. ex. SetUI8 -> set_UI8.
+        - Callback subroutine is now called with the stream object itself.
+        - Added 'tell' method to SWF::BinStream::Read.
+        - Added 'tell', 'mark', 'sub_stream' methods and 
+          'get_maxbits_of_bits_list', 'get_maxbits_of_sbits_list' functions
+          to SWF::BinStream::Write.
+        - Added SWF::BinStream::Write::SubStream class.
+       dumpswf.plx
+        - Now use SWF::BinStream::File.
+        - Output script now use SWF::File.
+        - Added second parameter for output file.
+        - Added usage.
+       Others
+        - Added SWF::File and SWF::BinStream::File.
+        - makefdb.plx is no longer supported.

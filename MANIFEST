@@ -1,0 +1,11 @@
+Changes
+File.pm
+Element.pm
+Element.pod
+BinStream.pm
+Parser.pm
+lib/SWF/BinStream/File.pm
+Makefile.PL
+MANIFEST
+test.pl
+dumpswf.plx
