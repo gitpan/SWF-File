@@ -1,5 +1,10 @@
 Revision history for Perl extension SWF::*.
 
+0.38 Tue Mar 15 00:57:57 2005
+       SWF::Parser
+	- 'parse' mathod did not call the 'tag-callback' sub properly. Fixed.
+                                                        (Thanks to Quyen Phuong)
+
 0.37 Sun Oct 31 02:04:31 2004
        SWF::Element
 	- Fixed wrong bit shift in _create_flag_accessor.

@@ -3,7 +3,7 @@ package SWF::Parser;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.09';
+$VERSION = '0.10';
 
 use SWF::BinStream;
 use Carp;
@@ -46,13 +46,14 @@ sub parse {
 #	return $self;
 #    }
     $stream->add_stream($data);
-    eval {
+    eval {{
 	unless (exists $self->{_header}) {
 	    $self->parsetag while !$self->{_aborted} and $stream->Length;
 	} else {
 	    $self->parseheader;
+	    redo if !$self->{_aborted} and $stream->Length;
 	}
-    };
+    }};
     if ($@) {
 	return $self if ($@=~/^The stream ran short by/);
 	die $@;
