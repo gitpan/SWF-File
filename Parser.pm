@@ -3,7 +3,7 @@ package SWF::Parser;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.04';
+$VERSION = '0.05';
 
 use SWF::BinStream;
 use Carp;
@@ -13,6 +13,7 @@ sub new {
     my %param = @_;
     my $self = { _header          => {},
 		 _tag             => {},
+		 _version         => 5,
 	     };
     my $a;
 
@@ -80,9 +81,9 @@ sub parseheader {
 
     unless (exists $header->{'signature'}) {
 	my $h = $header->{'signature'} = $stream->get_string(3);
-	die "This is not SWF stream " if ($h ne 'CWS' and $h ne 'FWS');
+	Carp::confess "This is not SWF stream " if ($h ne 'CWS' and $h ne 'FWS');
     }
-    $header->{'version'} = $stream->get_UI8 unless exists $header->{'version'};
+    $header->{'version'} = $self->{'_version'} = $stream->get_UI8 unless exists $header->{'version'};
     $header->{'filelen'} = $stream->get_UI32 unless exists $header->{'filelen'};
     $stream->add_codec('Zlib') if ($header->{'signature'} eq 'CWS');
     $header->{'nbits'} = $stream->get_bits(5) unless exists $header->{'nbits'};
@@ -109,7 +110,7 @@ sub parsetag {
     }
     unless (exists $tag->{'data'}) {
 	my $data=$stream->get_string($tag->{'length'});
-	$tag->{'data'}=SWF::BinStream::Read->new($data, sub{die 'Short!'});
+	$tag->{'data'}=SWF::BinStream::Read->new($data, sub{Carp::confess 'Short!'}, $self->{_version});
     }
     $self->tag($tag->{'header'} >> 6, $tag->{'length'}, $tag->{'data'});
     $self->{'_tag'}={};
@@ -222,7 +223,7 @@ and/or modify it under the same terms as Perl itself.
 
 L<SWF::BinStream>, L<SWF::Element>
 
-SWF file format and SWF file reference in SWF SDK.
+SWF file format specification from Macromedia.
 
 
 =cut

@@ -23,7 +23,7 @@ to create, configure, clone, pack to bit strings, and unpack from bit strings.
 =head2 SWF::Element::*
 
 I<SWF::Element> class is a base class of SWF element, such as Tag, RECT, SHAPE, etc.
-Each SWF::Element object has one or more fields.  Each field is also SWF::Element object.
+Each SWF::Element object has one or more fields.
 
 =head3 METHODS
 
@@ -57,6 +57,9 @@ The I<$element> is I<NOT defined> if all of its field are not defined.
 =item $element->dumper([\&outputsub, $indent]);
 
 dumps the element as a perl script which can re-create the element.
+It can take the subroutine reference and initial indent width for output.
+The subroutine is called with the script string and the indent width.
+In default, prints the script to the selected filehandle (usually STDOUT).  
 
 =item $element->pack($stream);
 
@@ -71,59 +74,35 @@ I<$stream> should be I<SWF::BinStream::Read> object.
 =item $element->I<FieldName>([configure parameters...]);
 
 Each field of I<$element> can access by field name. 
-When calling without parameter, it returns the field object.
-when calling with the same element object or the configure parameters
- of the field, it sets the field with the parameters and returns 
-the field object.
+When calling without parameter, it returns the field object or value.
+when calling with parameters, it calls I<configure> method to set the field with the parameters and returns the field object or value.
 
 =item $element->I<FlagName>([value]);
 
-The element has some flag accessor if the element has the field which consists some flags.
+Some fields are sets of flags.  A flag is not an object but a simple scalar value, and is accessed by flag accessor method.
 When calling without value, it returns the flag value.
 When calilng with the value, it sets proper bit(s) of the I<Flags> field with the value and returns the flag value.
 
 =back
 
-=head2 SWF::Element::Scalar and its derivatives
+=head2 SWF::Element::Scalar derivatives
 
-I<SWF::Element::Scalar> and its derivatives represent a field whose value is a scalar.
-I<SWF::Element::Scalar> doesn't have pack/unpack methods, so
-the parent element is responsible to pack/unpack it.
-There are some derivative classes which has pack/unpack methods:
+I<SWF::Element::Scalar> derivatives represent a scalar field which have their own pack/unpack method.
 
-  SWF::Element::UI8/16/32 - 8/16/32 bits unsigned integer.
-  SWF::Element::SI8/16/32 - 8/16/32 bits signed integer.
   SWF::Element::STRING    - null-terminated string.
   SWF::Element::PSTRING   - pascal type string (string with its length).
-  SWF::Element::ID        - 16bit ID of SWF shapes, bipmaps, sounds, etc.
+  SWF::Element::ID        - 16bit ID of SWF characters (shapes, bitmaps, sounds, etc.)
   SWF::Element::BinData   - Binary Data (described later).
-
-When the object of these classes is used in expression, it is degraded to mere scalar.
-
-  # to be transparent 
-  $new_alpha = $color->Alpha / 2;
-  $color->Alpha($new_alpha);
-
-or
-
-  $color->Alpha($color->Alpha / 2);
-
-When you want to get a field value into a variable, it is recommended to use value method,
-or it may cause an unexpect change of the field.
-
-  #$alpha = $color->Alpha;  # NOT recommended.
-  $alpha = $color->Alpha->value;
 
 =head3 METHODS
 
-I<SWF::Element::Scalar> has all methods of I<SWF::Element> except any
+I<SWF::Element::Scalar> inherits all methods of I<SWF::Element> except any
 field/flag accessors.  Here described the difference.
 
 =over 4
 
 =item $scalar->configure([value])
 
-gets and sets the object.
 When calling without any parameter, the method returns the value of the object.
 When calling with a value, the method sets the value to the object and returns the value.
 
@@ -196,8 +175,9 @@ the new element.
 Here is the list of all subclasses representing the SWF element.
 'SWF::Element::' is omitted from each class name.
 ex. RECT means SWF::Element::RECT class.
-See 'SWF file reference' for further information about SWF elements and fields.
-You can download the document from http://openswf.org/ .
+'$' represents a simple scalar.
+See 'Macromedia Flash (SWF) File Format Specifications' for further information about SWF elements and fields.
+You can get the document from http://www.macromedia.com/software/flash/open/licensing/fileformat/ .
 
 =head3 Basic Types
 
@@ -208,32 +188,32 @@ You can download the document from http://openswf.org/ .
 represents a color without/with alpha channel.
 
   field    class
-  Red      UI8
-  Green    UI8
-  Blue     UI8
-  Alpha    UI8  - RGBA only 
+  Red      $
+  Green    $
+  Blue     $
+  Alpha    $  - RGBA only 
 
 =item RECT
 
 represents a rectanglular region.
 
   field    class
-  Xmin     Scalar
-  Ymin     Scalar
-  Xmax     Scalar
-  Ymax     Scalar
+  Xmin     $
+  Ymin     $
+  Xmax     $
+  Ymax     $
 
 =item MATRIX
 
 represents a matrix for scale, rotation, and translation.
 
  field        class
- ScaleX       Scalar
- ScaleY       Scalar
- RotateSkew0  Scalar
- RotateSkew1  Scalar
- TranslateX   Scalar
- TranslateY   Scalar
+ ScaleX       $
+ ScaleY       $
+ RotateSkew0  $
+ RotateSkew1  $
+ TranslateX   $
+ TranslateY   $
 
 There are three methods.
 
@@ -259,14 +239,14 @@ rotates I<degree> degree.
 represents a color transform value.
 
  field          class
- RedMultTerm    Scalar
- GreenMultTerm  Scalar
- BlueMultTerm   Scalar
- AlphaMultTerm  Scalar  - CXFORMWITHALPHA only.
- RedAddTerm     Scalar
- GreenAddTerm   Scalar
- BlueAddTerm    Scalar
- AlphaAddTerm   Scalar  - CXFORMWITHALPHA only.
+ RedMultTerm    $
+ GreenMultTerm  $
+ BlueMultTerm   $
+ AlphaMultTerm  $  - CXFORMWITHALPHA only.
+ RedAddTerm     $
+ GreenAddTerm   $
+ BlueAddTerm    $
+ AlphaAddTerm   $  - CXFORMWITHALPHA only.
 
 =back
 
@@ -277,6 +257,7 @@ represents a color transform value.
 =item Tag
 
 A base class of all SWF tags.
+When it is unpacked from SWF stream, it is re-blessed the proper tag class.
 
 =over 4
 
@@ -284,19 +265,372 @@ A base class of all SWF tags.
 
 returns the tag ID number.
 
+=item $tag->tag_name
+
+returns the tag name.
+
 =back
 
-=item Tag::Unidentified
+=item Tag::Unknown
 
-is an I<empty> tag object.
-When it is unpacked from SWF stream, it is re-blessed the proper tag class.
-
-=item Tag::Undefined
-
-represents the undefined tags.
+represents the unknown tags.
 
  field  class
+ Tag    $
  Data   BinData
+
+=back
+
+=head4 Display List
+
+=over 4
+
+=item Tag::PlaceObject
+
+places the object.
+
+ field           class
+ CharacterID     ID
+ Depth           $
+ Matrix          MATRIX
+ ColorTransform  CXFORM
+
+=item Tag::PlaceObject2
+
+places the object.
+
+ field           class
+ Flags           $
+   PlaceFlagMove (Flags)
+ Depth           $
+ CharacterID     ID
+ Matrix          MATRIX
+ ColorTramsform  CXFORMWITHALPHA
+ Ratio           $
+ Name            STRING
+ ClipDepth       $
+ ClipActions     Array::CLIPACTIONRECORDARRAY
+
+=item Array::CLIPACTIONRECORDARRAY
+
+An array of CLIPACTIONRECORD.
+
+=item CLIPACTIONRECORD
+
+represents a clip action triggered by clip event.
+
+ field                     class
+ EventFlags6               $            - SWF version>=6 only
+   ClipEventKeyPress       (EventFlags6)
+   ClipEventDragOut        (EventFlags6)
+   ClipEventDragOver       (EventFlags6)
+ EventFlags                $
+   ClipEventRollOut        (EventFlags)
+   ClipEventRollOver       (EventFlags)
+   ClipEventReleaseOutside (EventFlags)
+   ClipEventRelease        (EventFlags)
+   ClipEventPress          (EventFlags)
+   ClipEventInitialize     (EventFlags)
+   ClipEventData           (EventFlags)
+   ClipEventKeyUp          (EventFlags)
+   ClipEventKeyDown        (EventFlags)
+   ClipEventMouseUp        (EventFlags)
+   ClipEventMouseDown      (EventFlags)
+   ClipEventMouseMove      (EventFlags)
+   ClipEventUnload         (EventFlags)
+   ClipEventEnterFrame     (EventFlags)
+   ClipEventLoad           (EventFlags)
+ KeyCode                   $
+ Actions                   Array::ACTIONRECORDARRAY
+
+=item Tag::RemoveObject / Tag::RemoveObject2
+
+removes the object.
+
+ field        class
+ CharacterID  ID    - RemoveObject only
+ Depth        UI16
+
+=item Tag::ShowFrame
+
+shows current frame.
+
+=back
+
+=head4 Controls
+
+=over 4
+
+=item Tag::SetBackgroundColor
+
+sets the background color.
+
+ field            class
+ BackgroundColor  RGB
+
+=item Tag::FrameLabel
+
+sets the frame label.
+
+ field         class
+ Name          STRING
+ NameAchorFlag $
+
+=item Tag::Protect
+
+prevents the file from editing in the authoring tool.
+
+ field     class
+ Reserved  $        always 0 (?)
+ Password  STRING
+
+=item Tag::End
+
+marks the end of the file.
+
+=item Tag::ExportAssets
+
+exports SWF characters to use in other SWFs.
+
+ field   class
+ Assets  Array::ASSETARRAY
+
+=item Tag::ImportAssets
+
+imports SWF characters from another SWF.
+
+ field   class
+ URL     STRING
+ Assets  Array::ASSETARRAY
+
+=item Array::ASSETARRAY
+
+An array of ASSET.
+
+=item ASSET
+
+An ID and name pair of SWF character for export/import.
+
+ field   class
+ ID      UI16
+ Name    STRING
+
+=item Tag::EnableDebugger / 2
+
+enables debugging.
+EnableDebugger is for SWF 5, and EnableDebugger2 is for SWF 6.
+
+ field     class
+ Reserved  $        always 0 (?)
+ Password  STRING
+
+=back
+
+=head4 Actions
+
+=over 4
+
+=item Tag::DoAction
+
+sets the frame action.
+
+ field    class
+ Actions  Array::ACTIONRECORDARRAY
+
+=item Tag::DoInitAction
+
+performs the actions to initialize a sprite.
+
+ field    class
+ SpriteID ID
+ Actions  Array::ACTIONRECORDARRAY
+
+=item Array::ACTIONRECORDARRAY
+
+An array of ACTIONRECORD
+
+=item ACTIONRECORD
+
+Base class of action tags.
+Action tags without any parameter belongs this class.
+
+ field  class
+ Tag    ACTIONTagNumber
+
+And it has a pseudo-field, 'LocalLabel', which can be used as
+destination of ActionIf, ActionJump, and ActionWaitForFrame/2,
+and CodeSize of DefineFunction.
+Label string must not start with digits and not contain '#'.
+
+=item ACTIONTagNumber
+
+represents an action tag number or name.
+
+=item ACTIONRECORD::ActionUnknown
+
+represents an undefined actiontag.
+
+ field  class
+ Tag    ACTIONTagNumber
+ Data   BinData
+
+=item ACTIONRECORD::ActionGotoFrame
+
+goes to the specified frame.
+
+ field  class
+ Tag    ACTIONTagNumber
+ Frame  $
+
+=item ACTIONRECORD::ActionGetURL
+
+directs the player to get the specified URL.
+
+ field         class
+ Tag           ACTIONTagNumber
+ UrlString     STRING
+ TargetString  STRING
+
+=item ACTIONRECORD::ActionWaitForFrame
+
+waits until the specified frame otherwise skip the specified number of actions.
+
+ field      class
+ Tag        ACTIONTagNumber
+ Frame      $
+ SkipCount  $[label]
+
+I<unpack> method calculate the destination of I<SkipCount>, insert LocalLabel
+into the destination action, and set the I<SkipCount> value to 'label#original value' 
+such as 'A#45'.  When the action is I<pack>ed to SWF stream, '#' and the following 
+letters are ignored.
+
+=item ACTIONRECORD::ActionSetTarget
+
+sets context of action.
+
+ field       class
+ Tag         ACTIONTagNumber
+ TargetName  STRING
+
+=item ACTIONRECORD::ActionGotoLabel
+
+goes to frame associated with the specified label.
+
+ field  class
+ Tag    ACTIONTagNumber
+ Label  STRING
+
+=item ACTIONRECORD::ActionWaitForFrame2
+
+waits until the frame specified in the stack otherwise skip the specified number of actions.
+
+ field      class
+ Tag        ACTIONTagNumber
+ SkipCount  $[label]
+
+See also the note of WaitForFrame about the label.
+
+=item ACTIONRECORD::ActionPush
+
+pushes data on the stack.
+
+ field     class
+ Tag       ACTIONTagNumber
+ DataList  Array::ACTIONDATAARRAY
+
+=item Array::ACTIONDATAARRAY
+
+An array of ACTIONDATA
+
+=item ACTIONDATA
+
+A base class of data for action script.
+If you configure this element, the element is re-blessed with proper 
+subclass.
+
+=over 4
+
+=item $actiondata->configure([type => data])
+
+sets the data and re-blessed itself to the type.
+Types are String, Property (FLASH 4 only), Register, Boolean, Double, Integer, Lookup.
+
+=back
+
+=item ACTIONRECORD::ActionJump / ActionIf
+
+branches action script always / if stack top is true.
+
+ field         class
+ BranchOffset  $[label]
+
+I<unpack> method calculate the destination of I<BranchOffset>, insert LocalLabel
+into the destination action, and set the I<BranchOffset> value to 'label#original value' 
+such as 'A#45'.  When the action is I<pack>ed to SWF stream, '#' and the following 
+letters are ignored.
+
+
+=item ACTIONRECORD::ActionGetURL2
+
+directs the player to get the URL specified in the stack.
+
+ field   class
+ Tag     ACTIONTagNumber
+ Method  $
+
+=item ACTIONRECORD::ActionGotoFrame2
+
+goes to the frame specified in the stack.
+
+ field    class
+ Tag      ACTIONTagNumber
+ PlayFlag $
+
+=item ACTIORECORD::ActionConstantPool
+
+defines word set which can be referred by index.
+
+ field  class
+ Tag    ActionTagNumber
+ ConstantPool  Array::STRINGARRAY
+
+=item Array::STRINGARRAY
+
+an array of STRING.
+
+=item ACTIONRECORD::ActionDefineFunction
+
+defines a function.
+
+ field     class
+ Tag       ActionTagNumber
+ FunctionName  STRING
+ Params        Array::STRINGARRAY
+ CodeSize      $[label]
+
+CodeSize can take the label which indicates the action next to
+the function definition.
+
+=item ACTIONRECORD::ActionStoreRegister
+
+stores the stack top to the register.
+
+ field     class
+ Tag       ActionTagNumber
+ Register  $
+
+=item ACTIONRECORD::ActionWith
+
+refers to the object on the top of stack for the script
+written in the I<WithBlock>.
+
+ field      class
+ WithBlock  Array::ACTIONBLOCK
+
+=item Array::ACTIONBLOCK
+
+an array of ACTIONRECORD.
 
 =back
 
@@ -315,12 +649,102 @@ represents fill style of shapes.
 FILLSTYLE3 has alpha channels in its field elements.
 
  field           class
- FillStyleType   UI8
+ FillStyleType   $
  Color           RGB / RGBA
  GradientMatrix  MATRIX
  Gradient        Array::GRADIENT1 / 3
  BitmapID        ID
  BitmapMatrix    MATRIX
+
+=item Array::LINESTYLEARRAY1 / 2 / 3
+
+An array of line styles.
+LINESTYLEARRAY1 and 2 have LINESTYLE1, and LINESTYLEARRAY3 has LINESTYLE3.
+
+=item LINESTYLE1 / 3
+
+represents a line style of shapes.
+LINESTYLE3 has an alpha channel.
+
+ field  class
+ Width  $
+ Color  RGB / RGBA
+
+=item SHAPE
+
+represents a shape without styles for DefineFont/2, and DefineMorphShape.
+
+ field         class
+ ShapeRecords  Array::SHAPERECARRAY1
+
+=item SHAPEWITHSTYLE1 / 2 / 3
+
+represents a shape with styles.
+SHAPEWITHSTYLE3 has alpha channels.
+
+ field         class
+ FillStyles    Array::FILLSTYLEARRAY1 / 2 / 3
+ LineStyles    Array::LINESTYLEARRAY1 / 2 / 3
+ ShapeRecords  Array::SHAPERECARRAY1 / 2 / 3 
+
+=item Array::SHAPERECORDARRAY1 / 2 / 3
+
+An array of SHAPERECORD1 / 2 / 3.
+
+=item SHAPERECORD1 / 2 / 3
+
+is a base class of the edges of a shape.
+If you configure this element, the element is re-blessed with proper 
+subclass.
+
+=item SHAPERECORD1/2/3::STYLECHANGERECORD
+
+represents a start point and style of new edge.
+
+ field       class
+ MoveX       $
+ MoveY       $
+ Fill0Style  $
+ Fill1Style  $
+ LineStyle   $
+ FillStyles  Array::FILLSTYLEARRAY2 / 3  - SHAPERECORD2/3 only
+ LineStyles  Array::LINESTYLEARRAY2 / 3  - SHAPERECORD2/3 only
+
+=item SHAPERECORDn::STRAIGHTEDGERECORD
+
+represents a straight edge.
+This is common subclass of SHAPERECORD1/2/3.
+
+ field   class
+ DeltaX  $
+ DeltaY  $
+
+=item SHAPERECn::CURVEDEDGERECORD
+
+represents a curved edge.
+This is common subclass of SHAPEREC1/2/3.
+
+ field          class
+ ControlDeltaX  $
+ ControlDeltaY  $
+ AnchorDeltaX   $
+ AnchorDeltaY   $
+
+=item Tag::DefineShape / Tag::DefineShape2 / Tag::DefineShape3
+
+defines shape. DefineShape2/3 can have more than 255 styles.
+DefineShape3 contains alpha channels.
+
+ field        class
+ ShapeID      ID
+ ShapeBounds  RECT
+ Shapes       SHAPEWITHSTYLE1 / 2 / 3
+
+=back
+
+=head4 Gradients
+
+=over 4
 
 =item Array::GRADIENT1 / 3
 
@@ -336,151 +760,6 @@ GRADRECORD3 has an alpha channel.
  Ratio  UI8
  Color  RGB / RGBA
 
-=item Array::LINESTYLEARRAY1 / 2 / 3
-
-An array of line styles.
-LINESTYLEARRAY1 and 2 have LINESTYLE1, and LINESTYLEARRAY3 has LINESTYLE3.
-
-=item LINESTYLE1 / 3
-
-represents a line style of shapes.
-LINESTYLE3 has an alpha channel.
-
- field  class
- Width  UI16
- Color  RGB / RGBA
-
-=item SHAPE1 / 2 / 3
-
-represents a shape without styles.
-SHAPE3 has alpha channels.
-
- field         class
- ShapeRecords  Array::SHAPERECARRAY1 / 2 / 3 
-
-=item SHAPEWITHSTYLE1 / 2 / 3
-
-represents a shape with styles.
-SHAPEWITHSTYLE3 has alpha channels.
-
- field         class
- FillStyles    Array::FILLSTYLEARRAY1 / 2 / 3
- LineStyles    Array::LINESTYLEARRAY1 / 2 / 3
- ShapeRecords  Array::SHAPERECARRAY1 / 2 / 3 
-
-=item Array::SHAPERECARRAY1 / 2 / 3
-
-An array of SHAPEREC1 / 2 / 3.
-
-=item SHAPEREC1 / 2 / 3
-
-is a base class of the edges of a shape.
-If you configure this element, the element is re-blessed with proper 
-subclass.
-
-=item SHAPEREC1/2/3::NEWSHAPE
-
-represents a start point and style of new edge.
-
- field       class
- MoveX       Scalar
- MoveY       Scalar
- Fill0Style  Scalar
- Fill1Style  Scalar
- LineStyle   Scalar
- FillStyles  Array::FILLSTYLEARRAY1 / 2 / 3
- LineStyles  Array::LINESTYLEARRAY1 / 2 / 3
-
-=item SHAPERECn::STRAIGHTEDGE
-
-represents an straight edge.
-This is common subclass of SHAPEREC1/2/3.
-
- field class
- X     Scalar
- Y     Scalar
-
-=item SHAPERECn::CURVEDEDGE
-
-represents an curved edge.
-This is common subclass of SHAPEREC1/2/3.
-
- field     class
- ControlX  Scalar
- ControlY  Scalar
- AnchorX   Scalar
- AnchorY   Scalar
-
-=item Tag::DefineShape / Tag::DefineShape2 / Tag::DefineShape3
-
-defines shape. DefineShape2/3 can have more than 255 styles.
-DefineShape3 contains alpha channels.
-
- field        class
- ShapeID      ID
- ShapeBounds  RECT
- Shapes       SHAPEWITHSTYLE1 / 2 / 3
-
-=item Tag::DefineMorphShape
-
-defines the metamorphosis of one shape (Shape1) into another (Shape2).
-
- field            class
- CharacterID      ID
- ShapeBounds1     RECT
- ShapeBounds2     RECT
- MorphFillStyles  Array::MORPHFILLSTYLEARRAY
- MorphLineStyles  Array::MORPHLINESTYLEARRAY
- Edges1           SHAPE3
- Edges2           SHAPE3
-
-=item Array::MORPHFILLSTYLEARRAY
-
-An array of MORPHFILLSTYLE.
-
-=item MORPHFILLSTYLE
-
-represents fill styles for DefineMorphShape tag.
-
- field            class
- FillStyleType    UI8
- Color1           RGBA
- Color2           RGBA
- GradientMatrix1  MATRIX
- GradientMatrix2  MATRIX
- Gradient         Array::MORPHGRADIENT
- BitmapID         ID
- BitmapMatrix1    MATRIX
- BitmapMatrix2    MATRIX
-
-=item Array::MORPHGRADIENT
-
-An array of MORPHGRADRECORD.
-
-=item MORPHGRADRECORD
-
-represents one of the colors making gradient for DefineMorphShape.
-
- field   class
- Ratio1  UI8
- Color1  RGBA
- Ratio2  UI8
- Color2  RGBA
-
-=item Array::MORPHLINESTYLEARRAY
-
-An array of MORPHLINESTYLE.
-
-=item MORPHLINESTYLE
-
-represents a line style of shapes for DefineMorphShape.
-
- field   class
- Width1  UI16
- Color1  RGBA
- Width2  UI16
- Color2  RGBA
-
 =back
 
 =head4 Bitmaps
@@ -491,20 +770,26 @@ represents a line style of shapes for DefineMorphShape.
 
 defines JPEG image data.
 
- field            class
- BitmapID         ID
- BitmapJPEGImage  BinData
+ field        class
+ CharacterID  ID
+ JPEGImage    BinData
+
+=item Tag::JPEGTable
+
+defines JPEG encoding table.
+
+ field     class
+ JPEGData  BinData
 
 =item Tag::DefineBitsJPEG2 / 3
 
-defines JPEG image data and an encoding table.
+defines JPEG data including both the encoding table and the image data.
 DefineBitsJPEG3 has an alpha data table.
 
- field               class
- BitmapID            ID
- BitmapJPEGEncoding  BinData
- BitmapJPEGImage     BinData
- BitmapAlphaData     BinData - JPEG3 only.
+ field            class
+ CharacterID      ID
+ JPEGData         BinData
+ BitmapAlphaData  BinData - JPEG3 only.
 
 =item Tag::DefineBitsLossless / Tag::DefineBitsLossless2
 
@@ -512,44 +797,317 @@ defines a loss-less bitmap.
 DefineBitsLossless2 contains alpha channels.
 
  field                 class
- BitmapID              ID
- BitmapFormat          UI8
- BitmapWidth           UI16
- BitmapHeight          UI16
- BitmapColorTableSize  UI8
- CompressedData        BinData
+ CharacterID           ID
+ BitmapFormat          $
+ BitmapWidth           $
+ BitmapHeight          $
+ BitmapColorTableSize  $
+ ZlibBitmapData        BinData
 
-=item Tag::JPEGTable
+=back
 
-defines JPEG encoding table.
+=head4 Morphing
 
- field               class
- BitmapJPEGEncoding  BinData
+=over 4
+
+=item Tag::DefineMorphShape
+
+defines the start and end states of a morph sequence.
+
+ field            class
+ CharacterID      ID
+ StartBounds      RECT
+ EndBounds        RECT
+ MorphFillStyles  Array::MORPHFILLSTYLEARRAY
+ MorphLineStyles  Array::MORPHLINESTYLEARRAY
+ StartEdges       SHAPE
+ EndEdges         SHAPE
+
+=item Array::MORPHFILLSTYLEARRAY
+
+An array of MORPHFILLSTYLE.
+
+=item MORPHFILLSTYLE
+
+represents fill styles at start and end.
+
+ field                class
+ FillStyleType        $
+ StartColor           RGBA     (FillStyleType == 0x00)
+ EndColor             RGBA     (FillStyleType == 0x00)
+ StartGradientMatrix  MATRIX   (FillStyleType == 0x10[linear] or 0x12[radial])
+ EndGradientMatrix    MATRIX   (FillStyleType == 0x10[linear] or 0x12[radial])
+ Gradient             Array::MORPHGRADIENT
+                               (FillStyleType == 0x10[linear] or 0x12[radial])
+ BitmapID             ID       (FillStyleType == 0x40[tiled] or 0x41[clipped])
+ StartBitmapMatrix    MATRIX   (FillStyleType == 0x40[tiled] or 0x41[clipped])
+ EndBitmapMatrix      MATRIX   (FillStyleType == 0x40[tiled] or 0x41[clipped])
+
+=item Array::MORPHGRADIENT
+
+An array of MORPHGRADRECORD.
+
+=item MORPHGRADRECORD
+
+represents one of the colors making gradient at start and end.
+
+ field      class
+ StartRatio $
+ StartColor RGBA
+ EndRatio   $
+ EndColor   RGBA
+
+=item Array::MORPHLINESTYLEARRAY
+
+An array of MORPHLINESTYLE.
+
+=item MORPHLINESTYLE
+
+represents a line style of shapes at start and end.
+
+ field      class
+ StartWidth $
+ StartColor RGBA
+ EndWidth   $
+ EndColor   RGBA
+
+=back
+
+=head4 Fonts and Text
+
+=over 4
+
+=item Tag::DefineFont
+
+defines font glyphs.
+
+ field            class
+ FontID           ID
+ GlyphShapeTable  GLYPHSHAPEARRAY1
+
+=item Array::GLYPHSHAPEARRAY1 / 2
+
+An array of SHAPE.
+
+=item Tag::DefineFontInfo
+
+defines font information.
+
+ field                class
+ FontID               ID
+ FontName             PSTRING
+ FontFlags            $
+   FontFlagsShiftJIS  (FontFlags)
+   FontFlagsANSI      (FontFlags)
+   FontFlagsItalic    (FontFlags)
+   FontFlagsBold      (FontFlags)
+ LanguageCode         $            - DefineFontInfo2 only
+ CodeTable            Array::FONTCODETABLE
+
+=item Tag::DefineFont2
+
+defines font glyphs and other information.
+
+ field                class
+ FontID               ID
+ FontFlags            $
+   FontFlagsShiftJIS  (FontFlags)
+   FontFlagsANSI      (FontFlags)
+   FontFlagsItalic    (FontFlags)
+   FontFlagsBold      (FontFlags)
+ LanguageCode         $
+ FontName             PSTRING
+ GlyphShapeTable      Array::GLYPHSHAPEARRAY2
+ CodeTable            Array::FONTCODETABLE
+ FontAscent           $
+ FontDescent          $
+ FontLeading          $
+ FontAdvanceTable     Array::FONTADVANCETABLE
+ FontBoundsTable      Array::FONTBOUNDSTABLE
+ FontKerningTable     FONTKERNINGTABLE
+
+=item Array::FONTCODETABLE / FONTADVANCETABLE / FONTBOUNDSTABLE
+
+are arrays of a code, an advance value, and a bounding box of each glyph corresponding to the shape table, respectively.
+A code and an advance value are scalar, and a bounding box is a RECT.
+
+=item FONTKERNINGTABLE
+
+represents a table of kerning pairs of the font. 
+Each kerning pair is described as 'code1-code2'. 
+For example, a pair of 'T'(code 84) and 'o'(111) is '84-111'.
+
+=over 4
+
+=item $kern->configure([ pair [=> adjustment, ...]])
+
+When calling without any parameter, it returns all kerning pair and its adjustment.
+When calling with a kerning pair, it returns the adjustment of the pair.
+When calling with the list of a kerning pair and its adjustment, it adds the kerning data to the table.
+
+=back
+
+=item Tag::DefineText / Tag::DefineText2
+
+defines text.
+
+ field         class
+ CharacterID   ID
+ TextBounds    RECT
+ TextMatrix    MATRIX
+ TextRecords   Array::TEXTRECORDARRAY1 / 2
+
+=item Array::TEXTRECORDARRAY1 / 2
+
+An array of TEXTRECORD1 / 2
+
+=item TEXTRECORD1 / 2
+
+A base class of text records.
+If you configure this element, the element is re-blessed with proper 
+subclass.
+
+=item TEXTRECORD1/2::TYPE1
+
+represents a text style.
+
+ field       class
+ FontID      ID
+ TextColor   RGB / RGBA
+ XOffset     $
+ YOffset     $
+ TextHeight  $
+
+=item TEXTRECORD::TYPE0
+
+represents a text string.
+
+ field         class
+ GlyphEntries  Array:GLYPHENTRYARRAY
+
+=item Array::GLYPHENTRYARRAY
+
+An array of GLYPHENTRY.
+
+=item GLYPHENTRY
+
+represents a glyph entry for a letter of the text.
+
+ field         class
+ GlyphIndex    $
+ GlyphAdvance  $ 
+
+=item Tag::DefineEditText
+
+defines an edit box.
+
+ field         class
+ CharacterID   ID
+ Bounds        RECT
+ Flags         $
+   WordWrap    (Flags)
+   Multiline   (Flags)
+   Password    (Flags)
+   ReadOnly    (Flags)
+   AutoSize    (Flags)
+   NoSelect    (Flags)
+   Border      (Flags)
+   HTML        (Flags)
+   UseOutlines (Flags)
+ FontID        ID
+ FontHeight    $
+ TextColor     RGBA
+ MaxLength     $
+ Align         $
+ LeftMargin    $
+ RightMargin   $
+ Indent        $
+ Leading       $
+ VariableName  STRING
+ InitialText   STRING
+
+=back
+
+=head4 Sounds
+
+=over 4
+
+=item Tag::DefineSound
+
+defines sound.
+
+ field             class
+ SoundID           ID
+ Flags             $
+   SoundFormat     (Flags)
+   SoundRate       (Flags)
+   SoundSize       (Flags)
+   SoundType       (Flags)
+ SoundSampleCount  $
+ SoundData         BinData
+
+=item Tag::StartSound
+
+starts playing sound.
+
+ field      class
+ SoundID    ID
+ SoundInfo  SOUNDINFO
+
+=item SOUNDINFO
+
+represents sound information.
+
+ field            class
+ SyncFlags        $
+   SyncNoMultiple (SyncFlags)
+   SyncStop       (SyncFlags)
+ InPoint          $
+ OutPoint         $
+ LoopCount        $
+ EnvelopeRecords  Array::SOUNDENVELOPEARRAY
+
+=item Array::SOUNDENVELOPEARRAY
+
+An array of SOUNDENVELOPE.
+
+=item SOUNDENVELOPE
+
+represents sound envelope information.
+
+ field       class
+ Pos44       $
+ LeftLevel   $
+ RightLevel  $
+
+=item Tag::SoundStreamHead / Tag::SoundStreamHead2
+
+defines the format of streaming sound.
+
+ field                    class
+ Flags                    $
+   PlaybackSoundRate      (Flags)
+   PlaybackSoundSize      (Flags)
+   PlaybackSoundType      (Flags)
+   StreamSoundCompression (Flags)
+   StreamSoundRate        (Flags)
+   StreamSoundSize        (Flags)
+   StreamSoundType        (Flags)
+ StreamSoundSampleCount   $
+ LatencySeek              $        - SoundStreamHead2 only
+
+=item Tag::SoundStreamBlock
+
+defines the sound data which is interleaved with the frame.
+
+ field            class
+ StreamSoundData  BinData
 
 =back
 
 =head4 Buttons
 
 =over 4
-
-=item Tag::Definebutton
-
-defines a button character.
-
- field     class
- ButtonID  ID
- Buttons   Array::BUTTONRECORDARRAY1
- Actions   Array::ACTIONRECORDARRAY
-
-=item Tag::DefineButton2
-
-defines a button character.
-
- field                   class
- ButtonID                ID
- Flags                   UI8
- Buttons                 Array::BUTTONRECORDARRAY2
- Button2ActionCondition  Array::ACTIONCONDITIONARRAY
 
 =item Array::BUTTONRECORDARRAY1 / 2
 
@@ -559,37 +1117,58 @@ An array of BUTTONRECORD1 / 2.
 
 represents a button character and associated button states.
 
- field           class
- ButtonStates    UI8
-   StateHitTest  (ButtonStates)
-   StateDown     (ButtonStates)
-   StateUp       (ButtonStates)
-   StateOver     (ButtonStates)
- ButtonCharacter UI16
- ButtonLayer     UI16
- ButtonMatrix    MATRIX
- ColorTransform  CXFORMWITHALPHA - only BUTTONRECORD2
+ field                 class
+ field                 class
+ ButtonStates          $
+   ButtonStateHitTest  (ButtonStates)
+   ButtonStateDown     (ButtonStates)
+   ButtonStateOver     (ButtonStates)
+   ButtonStateUp       (ButtonStates)
+ CharacterID           ID
+ PlaceDepth            $
+ PlaceMatrix           MATRIX
+ ColorTransform        CXFORMWITHALPHA - BUTTONRECORD2 only
 
-=item Array::ACTIONCONDITIONARRAY
+=item Tag::Definebutton
 
-An array of ACTIONCONDITION.
+defines a button character.
 
-=item ACTIONCONDITION
+ field       class
+ ButtonID    ID
+ Characters  Array::BUTTONRECORDARRAY1
+ Actions     Array::ACTIONRECORDARRAY
+
+=item Tag::DefineButton2
+
+defines a button character which has the actions triggered by any state stansition.
+
+ field       class
+ ButtonID    ID
+ Flags       $
+ Characters  Array::BUTTONRECORDARRAY2
+ Actions     Array::BUTTONCONDACTIONARRAY
+
+=item Array::BUTTONCONDACTIONARRAY
+
+An array of BUTTONCONDACTION.
+
+=item BUTTONCONDACTION
 
 represents actions and a button states condition which triggers off the actions.
 
- field                class
- Condition            UI16
-   IdleToOverUp       (Condition)
-   OverUpToIdle       (Condition)
-   OverUpToOverDown   (Condition)
-   OverDownToOverUp   (Condition)
-   OverDownToOutDown  (Condition)
-   OutDownToOverDown  (Condition)
-   OutDownToIdle      (Condition)
-   IdleToOverDown     (Condition)
-   OverDownToIdle     (Condition)
- Actions              Array::ACTIONRECORDARRAY
+ field                    class
+ Condition                $
+   CondKeyPress           (Condition)
+   CondOverDownToIdle     (Condition)
+   CondIdleToOverDown     (Condition)
+   CondOutDownToIdle      (Condition)
+   CondOutDownToOverDown  (Condition)
+   CondOverDownToOutDown  (Condition)
+   CondOverDownToOverUp   (Condition)
+   CondOverUpToOverDown   (Condition)
+   CondOverUpToIdle       (Condition)
+   CondIdleToOverUp       (Condition)
+ Actions                  Array::ACTIONRECORDARRAY
 
 =item Tag::DefineButtonCxform
 
@@ -616,221 +1195,6 @@ defines the sound data for a button.
 
 =back
 
-=head4 Fonts and Text
-
-=over 4
-
-=item Tag::DefineFont
-
-defines font glyphs.
-
- field       class
- FontID      ID
- ShapeTable  SHAPEARRAY1
-
-=item Array::SHAPEARRAY1 / 2
-
-An array of SHAPE1 / 2.
-
-=item Tag::DefineFont2
-
-defines font glyphs and other information.
-
- field                class
- FontID               ID
- FontFlags            UI16
-   FontFlagsBold      (FontFlags)
-   FontFlagsItalic    (FontFlags)
-   FontFlagsANSI      (FontFlags)
-   FontFlagsUnicode   (FontFlags)
-   FontFlagsShiftJIS  (FontFlags)
- FontName              PSTRING
- FontShapeTable        Array::SHAPEARRAY2
- FontCodeTable         Array::FONTCODETABLE
- FontAscent            SI16
- FontDescent           SI16
- FontLeading           SI16
- FontAdvanceTable      Array::FONTADVANCETABLE
- FontBoundsTable       Array::FONTBOUNDSTABLE
- FontKerningTable      FONTKERNINGTABLE
-
-=item Array::FONTCODETABLE / FONTADVANCETABLE / FONTBOUNDSTABLE
-
-are arrays of a code, an advance value, and a bounding box of each glyph corresponding to the shape table, respectively.
-A code and an advance value are scalar, and a bounding box is a RECT.
-
-=item FONTKERNINGTABLE
-
-represents a table of kerning pairs of the font. 
-Each kerning pair is described as 'code1-code2'. 
-For example, a pair of 'T'(code 84) and 'o'(111) is '84-111'.
-
-=over 4
-
-=item $kern->configure([ pair [=> adjustment, ...]])
-
-When calling without any parameter, it returns all kerning pair and its adjustment.
-When calling with a kerning pair, it returns the adjustment of the pair.
-When calling with the list of a kerning pair and its adjustment, it adds the kerning data to the table.
-
-=back
-
-=item Tag::DefineFontInfo
-
-defines font information.
-
- field                class
- FontID               ID
- FontName             PSTRING
- FontFlags            UI8
-   FontFlagsBold      (FontFlags)
-   FontFlagsItalic    (FontFlags)
-   FontFlagsANSI      (FontFlags)
-   FontFlagsUnicode   (FontFlags)
-   FontFlagsShiftJIS  (FontFlags)
- FontCodeTable        Array::FONTCODETABLE
-
-=item Tag::DefineText / Tag::DefineText2
-
-defines text.
-
- field         class
- TextID        ID
- TextBounds    RECT
- TextMatrix    MATRIX
- TextRecords   Array::TEXTRECORDARRAY1 / 2
-
-=item Array::TEXTRECORDARRAY1 / 2
-
-An array of TEXTRECORD1 / 2
-
-=item TEXTRECORD1 / 2
-
-A base class of text records.
-If you configure this element, the element is re-blessed with proper 
-subclass.
-
-=item TEXTRECORD::Type0
-
-represents a text string.
-
- field         class
- GlyphEntries  Array:GLYPHENTRYARRAY
-
-=item Array::GLYPHENTRYARRAY
-
-An array of GLYPHENTRY.
-
-=item GLYPHENTRY
-
-represents a glyph entry for a letter of the text.
-
- field             class
- TextGlyphIndex    Scalar
- TextGlyphAdvance  Scalar 
-
-=item TEXTRECORD1/2::Type1
-
-represents a text style.
-
- field        class
- TextFont     ID
- TextColor    RGB  / RGBA
- TextXOffset  SI16
- TextYOffset  SI16
- TextHeight   UI16
-
-=item Tag::DefineEditText
-
-defines an edit box.
-
- field             class
- TextFieldID       ID
- TextFieldBounds   RECT
- Flags             UI16
-   FlagReadOnly    (Flags)
-   FlagPassword    (Flags)
-   FlagMultiline   (Flags)
-   FlagWordWrap    (Flags)
-   FlagUseOutlines (Flags)
- FontID            ID
- FontHeight        UI16
- TextColor         RGBA
- MaxLength         UI16
- Align             UI8
- LeftMargin        UI16
- RightMargin       UI16
- Indent            UI16
- Leading           UI16
- Variable          STRING
- InitialText       STRING
-
-=back
-
-=head4 Sounds
-
-=over 4
-
-=item SOUNDINFO
-
-represents sound information.
-
- field            class
- SyncFlags        Scalar
- InPoint          UI32
- OutPoint         UI32
- LoopCount        UI16
- EnvelopeRecords  Array::SNDENVARRAY
-
-=item Array::SNDENVARRAY
-
-An array of SNDENV.
-
-=item SNDENV
-
-represents sound envelope information.
-
- field   class
- Mark44  UI32
- Level0  UI16
- Level1  UI16
-
-=item Tag::DefineSound
-
-defines sound.
-
- field             class
- SoundID           ID
- Flags             UI8
-   SoundFormat     (Flags)
-   SoundRate       (Flags)
-   SoundSize       (Flags)
-   SoundType       (Flags)
- SoundSampleCount  UI32
- SoundData         BinData
-
-=item Tag::SoundStreamBlock
-
-defines streaming sound.
-
- field            class
- StreamsoundData  BinData
-
-=item Tag::SoundStreamHead / Tag::SoundStreamHead2
-
-defines the start of streaming sound.
-
- field                   class
- StreamSoundMixFormat    UI8
- Flags                   UI8
-   SoundFormat           (Flags)
-   SoundRate             (Flags)
-   SoundSize             (Flags)
-   SoundType             (Flags)
- StreamSoundSampleCount  UI16
-
-=back
-
 =head4 Sprites
 
 =over 4
@@ -841,331 +1205,47 @@ defines a sprite.
 
  field              class
  SpriteID           ID
- FrameCount         UI6
- MiniFileStructure  Bindata
+ FrameCount         $
+ ControlTags        Array::TAGARRAY
+
+=item Array::TAGARRAY
+
+An array of SWF tags.
 
 =back
 
-=head4 Display List
+=head4 Video
 
 =over 4
 
-=item Tag::PlaceObject
+=item  Tag::DefineVideoStream
 
-places the object.
+defines a video character.
 
- field           class
- CharacterID     ID
- Depth           UI16
- Matrix          MATRIX
- ColorTransform  CXFORM
+  field        class
+  CharacterID  ID
+  NumFrames    $
+  Width        $
+  Height       $
+  VideoFlags   $
+  CodecID      $
 
-=item Tag::PlaceObject2
+=item Tag::VideoFrame
 
-places the object.
+provides a single frame of video data for a video character.
 
- field           class
- Flags           UI8
-   HasMove       (Flags)
- Depth           UI16
- CharacterID     ID
- Matrix          MATRIX
- ColorTramsform  CXFORMWITHALPHA
- Ratio           UI16
- ClipDepth       UI16
- Name            STRING
- EventActions    Array::EVENTACTIONARRAY
-
-=item Array::EVENTACTIONARRAY
-
-An array of EVENTACTION.
-
-=item EVENTACTION
-
-represents an event and frame actions triggered by it.
-
- field        class
- Flags        UI16
-   OnLoad     (Flags)
-   EnterFrame (Flags)
-   Unload     (Flags)
-   MouseMove  (Flags)
-   MouseDown  (Flags)
-   MouseUp    (Flags)
-   KeyDown    (Flags)
-   KeyUp      (Flags)
-   Data       (Flags)
- Action       Array::ACTIONBLOCK2
-
-=item Tag::RemoveObject / Tag::RemoveObject2
-
-removes the object.
-
- field        class
- CharacterID  ID    - RemoveObject only
- Depth        UI16
-
-=item Tag::ShowFrame
-
-shows current frame.
+  field      class
+  StreamID   ID
+  FrameNum   $
+  VideoData  BinData
 
 =back
 
-=head4 Controls
+=head1 LIMITATIONS
 
-=over 4
+Not all tags have been tested yet.
 
-=item Tag::BackgroundColor
-
-sets the background color.
-
- field            class
- BackgroundColor  RGB
-
-=item Tag::FrameLabel
-
-sets the frame label.
-
- field  class
- Label  STRING
-
-=item Tag::FreeCharacter
-
-frees the character.
-
- field        class
- CharacterID  ID
-
-=item Tag::NameCharacter
-
-names the character.
-
- field        class
- CharacterID  ID
- Name         STRING
-
-=item Tag::Protect
-
-prevents the file from editing in the authoring tool.
-
- field     class
- Password  BinData
-
-=item Tag::StartSound
-
-starts playing sound.
-
- field      class
- SoundID    ID
- SoundInfo  SOUNDINFO
-
-=item Tag::End
-
-marks the end of the file.
-
-=item Tag::ExportAssets
-
- field   class
- Assets  Array::ASSETARRAY
-
-=item Tag::ImportAssets
-
- field   class
- Assets  Array::ASSETARRAY
-
-=item Array::ASSETARRAY
-
-An array of ASSET.
-
-=item ASSET
-
- field   class
- ID      UI16
- String  STRING
-
-=back
-
-=head4 Actions
-
-=over 4
-
-=item Tag::DoAction
-
-performs the action.
-
- field    class
- Actions  Array::ACTIONRECORDARRAY
-
-=item Array::ACTIONRECORDARRAY
-
-An array of ACTIONRECORD
-
-=item ACTIONRECORD
-
-represents action tags without any parameter.
-
- field  class
- Tag    ACTIONTagNumber
-
-=item ACTIONTagNumber
-
-represents an action tag number or name.
-
-=item ACTIONRECORD::ActionUndefined
-
-represents an undefined actiontag.
-
- field  class
- Tag    ACTIONTagNumber
- Data   BinData
-
-=item ACTIONRECORD::ActionGotoFrame
-
-goes to the specified frame.
-
- field  class
- Tag    ACTIONTagNumber
- Frame  UI16
-
-=item ACTIONRECORD::ActionGetURL
-
-directs the player to get the specified URL.
-
- field      class
- Tag        ACTIONTagNumber
- URLString  STRING
- WinString  STRING
-
-=item ACTIONRECORD::ActionWaitForFrame
-
-waits until the specified frame otherwise skip the specified number of actions.
-
- field      class
- Tag        ACTIONTagNumber
- Frame      UI16
- SkipCount  UI8
-
-=item ACTIONRECORD::ActionSetTarget
-
-sets context of action.
-
- field       class
- Tag         ACTIONTagNumber
- TargetName  STRING
-
-=item ACTIONRECORD::ActionGotoLabel
-
-goes to frame associated with the specified label.
-
- field  class
- Tag    ACTIONTagNumber
- Label  STRING
-
-=item ACTIONRECORD::WaitForFrame2
-
-waits until the frame specified in the stack otherwise skip the specified number of actions.
-
- field      class
- Tag        ACTIONTagNumber
- SkipCount  UI8
-
-=item ACTIONRECORD::PushData
-
-pushes data to the stack.
-
- field     class
- Tag       ACTIONTagNumber
- DataList  Array::ACTIONDATAARRAY
-
-=item Array::ACTIONDATAARRAY
-
-An array of ACTIONDATA
-
-=item ACTIONDATA
-
-A base class of data for action script.
-If you configure this element, the element is re-blessed with proper 
-subclass.
-
-=over 4
-
-=item $actiondata->configure([type => data])
-
-sets the data and re-blessed itself to the type.
-Types are String, Property (FLASH 4 only), Register, Boolean, Double, Integer, Lookup.
-
-=back
-
-=item ACTIONRECORD::BranchAlways / BranchIfTrue
-
-branches action script always / if stack top is true.
-
- field   class
- Offset  UI16
-
-=item ACTIONRECORD::GetURL2
-
-directs the player to get the URL specified in the stack.
-
- field   class
- Tag     ACTIONTagNumber
- Method  UI8
-
-=item ACTIONRECORD::ActionGotoFrame2
-
-goes to the frame specified in the stack.
-
- field  class
- Tag    ACTIONTagNumber
- Flag   UI8
-
-=item ACTIORECORD::ActionDefineDictionary
-
-defines word set which can be referred by index.
-
- field  class
- Tag    ActionTagNumber
- Words  Array::WORDARRAY
-
-=item Array::WORDARRAY
-
-an array of STRING.
-
-=item ACTIONRECORD::ActionDefineFunction
-
-defines a function.
-
- field     class
- Tag       ActionTagNumber
- Name      STRING
- Args      Array::ACTIONFUNCARGS
- Function  Array::ACTIONBLOCK
-
-=item Array::ACTIONFUNCARGS
-
-An array of STRING.
-
-=item Array::ACTIONBLOCK / Array::ACTIONBLOCK2
-
-an array of ACTIONRECORD.
-
-=item ACTIONRECORD::ActionStoreRegister
-
-stores the stack top to the register.
-
- field     class
- Tag       ActionTagNumber
- Register  UI8
-
-=item ACTIONRECORD::ActionWith
-
-refers to the object on the top of stack for the member and the method
-written in the I<WithBlock>, like 'With' statement of Visual Basic.
-
- field      class
- WithBlock  Array::ACTIONBLOCK
-
-=back
+Binary block data, such as bitmaps, sounds, and video, are neither decoded nor encoded.
 
 =head1 COPYRIGHT
 
@@ -1178,7 +1258,7 @@ and/or modify it under the same terms as Perl itself.
 
 L<SWF::BinStream>, L<SWF::Parser>
 
-SWF file format and SWF file reference in SWF SDK.
+SWF file format specification from Macromedia.
 
 
 =cut

@@ -4,7 +4,7 @@ use strict;
 use vars qw($VERSION);
 use SWF::BinStream;
 
-$VERSION = '0.03';
+$VERSION = '0.04';
 
 package SWF::BinStream::File::Read;
 
@@ -14,9 +14,9 @@ use vars qw(@ISA);
 @ISA = ('SWF::BinStream::Read');
 
 sub new {
-    my ($class, $file) = @_;
+    my ($class, $file, $version) = @_;
 
-    my $self = $class->SUPER::new('', \&_readfile);
+    my $self = $class->SUPER::new('', \&_readfile, $version);
     $self->open($file) if $file;
     $self;
 }
@@ -78,9 +78,9 @@ use vars qw(@ISA);
 @ISA = ('SWF::BinStream::Write');
 
 sub new {
-    my ($class, $file) = @_;
+    my ($class, $file, $version) = @_;
 
-    my $self = $class->SUPER::new;
+    my $self = $class->SUPER::new($version);
     $self->SUPER::autoflush(1024, \&_writefile);
     $self->open($file) if $file;
     $self;
@@ -166,10 +166,11 @@ You can use the methods of I<SWF::BinStream::Read> except I<add_atream>.
 
 =over 4
 
-=item SWF::BinStream::File::Read->new( [ $file ] )
+=item SWF::BinStream::File::Read->new( [ $file, $version ] )
 
-creates a read stream connected with I<$file>.
-I<$file> is a file name or a file handle.
+creates a read stream connected with I<$file>.  
+I<$file> is a file name or a file handle.  
+I<$version> is SWF version number.  Default is 5.
 
 =item $stream->open( $file )
 
@@ -182,6 +183,8 @@ continued.
 
 closes the file and clears the stream.
 
+=back
+
 =head2 SWF::BinStream::File::Write
 
 is a subclass of SWF::BinStream::Write. You can write byte and bit
@@ -193,10 +196,11 @@ You can use the methods of I<SWF::BinStream::Write> except I<autoflush>.
 
 =over 4
 
-=item SWF::BinStream::File::Write->new( [ $file ] )
+=item SWF::BinStream::File::Write->new( [ $file, $version ] )
 
-creates a stream writing to a file I<$file>.
-I<$file> is a file name or a file handle.
+creates a stream writing to a file I<$file>.  
+I<$file> is a file name or a file handle.  
+I<$version> is SWF version number.  Default is 5.
 
 =item $stream->open( $file )
 

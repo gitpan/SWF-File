@@ -83,3 +83,37 @@ Revision history for Perl extension SWF::*.
 	- Supported zlib-compressed SWF file.
        Others
 	- Added SWF::BinStream::Codec::Zlib.
+
+0.20  Sun Nov 11 00:00:00 2002
+	This version is not compatible with the previous version.
+
+       SWF::Element
+	- Each element name and class is changed according to 
+	  the SWF file format specification version 6.
+	- Fixed wrong class structures.
+	- X and Y values in SHAPERECORDs are not converted to 
+	  the position relative to the shape origin any longer.
+	  They are now delta values which are the raw data of SWF.
+	- SWF6 (Flash MX) tags and actions are supported.
+	- SI* and UI* classes are abolished.
+	  Each field which were blessed with them are not objects any longer
+          but simple scalars.
+	  STRING, PSTRING, ID, and BinData are still classes.
+	- ACTIONRECORDARRAY support local label.
+	  It can be used as the offset of ActionJump, ActionIf, 
+	  and ActionDefineFunction, and also used as the skipcount
+	  of ActionWaitForFrame/2.
+       SWF::BinStream
+	- Support SWF version number. It is referred by some SWF::Element
+	  objects.
+	- require method becomes private.  It is not recommended to use.
+	- mark method accepts more than one tell positions and objects
+	  for each key.
+       SWF::File
+	- Version method becomes read only.  SWF version can be set by
+	  constructer.
+       SWF::BinStream::File, SWF::Parser
+	- Support SWF version number for SWF::BinStream.
+
+       dumpswf.plx
+	- Add comment outputs of frame number.

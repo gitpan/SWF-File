@@ -3,7 +3,7 @@ package SWF::BinStream;
 use strict;
 use vars qw($VERSION);
 
-$VERSION="0.06";
+$VERSION="0.07";
 
 ##
 
@@ -14,13 +14,18 @@ use Data::TemporaryBag;
 
 
 sub new {
-    my ($class, $initialdata, $shortsub) = @_;
+    my ($class, $initialdata, $shortsub, $version) = @_;
     bless { '_bits'     =>'',
 	    '_stream'   =>Data::TemporaryBag->new($initialdata),
 	    '_shortsub' =>$shortsub||sub{0},
 	    '_pos'      => 0,
 	    '_codec' => [],
+	    '_version' => $version||5,
 	  }, $class;
+}
+
+sub Version {
+    shift->{_version};
 }
 
 sub add_stream {
@@ -32,7 +37,7 @@ sub add_stream {
     $self->{'_stream'}->add($data);
 }
 
-sub require {
+sub _require {
     my ($self, $bytes) = @_;
     {
 	my $len=$self->Length;
@@ -55,7 +60,7 @@ sub get_string {
     my ($self, $bytes, $fNoFlush) = @_;
 
     $self->flush_bits() unless $fNoFlush;
-    $self->require($bytes);
+    $self->_require($bytes);
     $self->{'_pos'}+=$bytes;
     $self->{'_stream'}->substr(0, $bytes, '');
 }
@@ -154,13 +159,20 @@ use Carp;
 use Data::TemporaryBag;
 
 sub new {
-    my ($class) = @_;
+    my ($class, $version) = @_;
     bless { '_bits'    => '',
 	    '_stream'  => Data::TemporaryBag->new,
 	    '_pos' => 0,
+	    '_flushsize' => 0,
 	    '_mark' => {},
 	    '_codec' => [],
+	    '_version' => $version || 5,
+	    '_framecount' => 0,
 	  }, $class;
+}
+
+sub Version {
+    shift->{_version};
 }
 
 sub autoflush {
@@ -181,7 +193,6 @@ sub _write_stream {
     $self->{'_stream'}->add($data);
 
     if ($self->{'_flushsize'}>0 and $self->{'_stream'}->length >= $self->{'_flushsize'}) {
-	my $sub=$self->{'_flushsub'};
 	$self->flush_stream($self->{'_flushsize'});
     }
 }
@@ -237,13 +248,13 @@ sub mark {
     } elsif (not defined $obj) {
 	return wantarray ? $self->{_mark}{$key}[0] : @{$self->{_mark}{$key}};
     } else {
-	$self->{_mark}{$key}=[$self->tell, $obj];
+	push @{$self->{_mark}{$key}}, $self->tell, $obj;
     }
 }
 
 sub sub_stream {
     my $self=shift;
-    my $sub_stream=SWF::BinStream::Write->new;
+    my $sub_stream=SWF::BinStream::Write->new($self->Version);
     $sub_stream->{_parent}=$self;
     bless $sub_stream, 'SWF::BinStream::Write::SubStream';
 }
@@ -281,25 +292,29 @@ sub set_UI16 {
     $_[0]->_SetNum($_[1], 'v');
 }
 
-sub set_SI16 {
-    my ($self, $num) = @_;
-    $num += (1<<16) if $num<0;
-    $self->set_UI16($num);
-}
+*set_SI16 = \&set_UI16;
+
+#sub set_SI16 {
+#    my ($self, $num) = @_;
+#    $num += (1<<16) if $num<0;
+#    $self->set_UI16($num);
+#}
 
 sub set_UI32 {
     $_[0]->_SetNum($_[1], 'V');
 }
 
-sub set_SI32 {
-    my ($self, $num) = @_;
-    $num += (2**32) if $num<0;
-    $self->set_UI32($num);
-}
+*set_SI32 = \&set_UI32;
+
+#sub set_SI32 {
+#    my ($self, $num) = @_;
+#    $num += (2**32) if $num<0;
+#    $self->set_UI32($num);
+#}
 
 sub set_bits {
     my ($self, $num, $nbits) = @_;
-    return if $nbits==0;
+    return unless $nbits;
     $self->{'_bits'} .= substr(unpack('B*',pack('N', _round($num))), -$nbits);
     my $s = '';
     while (length($self->{'_bits'})>=8) {
@@ -397,8 +412,8 @@ sub flush_stream {
     while (@marks) {
 	my $key = shift @marks;
 	my $mark = shift @marks;
-	$mark->[0] += $p_tell;
-	$self->{_parent}->mark($key, @$mark);
+	$mark->[$_*2] += $p_tell for (0..@$mark/2-1);
+	push @{$self->{_parent}->{_mark}{$key}}, @$mark;
     }
     undef $self;
 }
@@ -463,13 +478,16 @@ If you want to skip remaining bits manually, use I<flush_bits>.
 
 =over 4
 
-=item SWF::BinStream::Read->new( [ $initialdata, \&callback_in_short ] )
+=item SWF::BinStream::Read->new( [ $initialdata, \&callback_in_short, $version ] )
 
-Creates a read stream. It takes two optional arguments. The first arg 
+Creates a read stream. It takes three optional arguments. The first arg 
 is a binary string to set as initial data of the stream. The second is
 a reference of a subroutine which is called when the stream data runs
 short.  The subroutine is called with two ARGS, the first is I<$stream>
-itself, and the second is how many bytes wanted.
+itself, and the second is how many bytes wanted.  
+The third arg is SWF version number.  Default is 5.  It is necessary to
+set proper version because some SWF tags change their structure by the 
+version number. 
 
 =item $stream->add_codec( $codec_name )
 
@@ -479,11 +497,6 @@ Decoder 'Zlib' is only available now.
 =item $stream->add_stream( $binary_data )
 
 Adds binary data to the stream.
-
-=item $stream->require( $num )
-
-Requires to keep $num bytes data to the stream. Then you can
-get $num bytes from the stream without short.
 
 =item $stream->Length
 
@@ -553,9 +566,12 @@ use I<flush_bits>.
 
 =over 4
 
-=item SWF::BinStream::Write->new
+=item SWF::BinStream::Write->new( [$version] )
 
 Creates a write stream.
+One optional argument is SWF version number.  Default is 5.
+It is necessary to set proper version because some SWF tags change 
+their structure by the version number. 
 
 =item $stream->add_codec( $codec_name )
 

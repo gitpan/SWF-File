@@ -1,48 +1,25 @@
 package SWF::File;
 
 use strict;
-use vars qw($VERSION @ISA);
 
 use SWF::Element;
 use SWF::BinStream::File;
 use Carp;
 
-{
-    my $s=SWF::Element::Tag::ShowFrame->new;
-    *{SWF::Element::Tag::ShowFrame::pack_orig} = $s->can('pack');
-    *{SWF::Element::Tag::ShowFrame::pack} = sub {
-	$_[1]->{_header_FrameCount}++ if $_[1]->isa('SWF::File');
-	&SWF::Element::Tag::ShowFrame::pack_orig;
-    }
-}
-
-$VERSION = '0.02';
-@ISA = ('SWF::BinStream::Write::SubStream');
+our $VERSION = '0.03';
+our @ISA = ('SWF::BinStream::Write::SubStream');
 
 sub new {
     my ($class, $file, %header) = @_;
-    my $stream = SWF::BinStream::File::Write->new($file);
+    my $stream = SWF::BinStream::File::Write->new($file, $header{Version});
     my $self = $stream->sub_stream;
 
     bless $self, ref($class)||$class;
 
     $self->{_header_CompressFlag} = 0;
-    $self->Version  ( $header{Version}   || 5  );
     $self->FrameRate( $header{FrameRate} || 12 );
     $self->FrameSize( $header{FrameSize} || [0, 0, 12800, 9600] );
     $self;
-}
-
-sub Version {
-    my ($self, $v) = @_;
-    if (defined $v) {
-	$self->{_header_Version} = $v;
-	if ($v < 6 and $self->{_header_CompressedFlag}) {
-	    $self->{_header_CompressedFlag} = 0;
-	    carp "Compressed SWF is supported by version 6 or higher ";
-	}
-    }
-    $self->{_header_Version};
 }
 
 sub FrameRate {
@@ -51,8 +28,8 @@ sub FrameRate {
 }
 
 sub FrameCount {
-    $_[0]->{_header_FrameCount} = $_[1] if defined $_[1];
-    $_[0]->{_header_FrameCount};
+    $_[0]->{_framecount} = $_[1] if defined $_[1];
+    $_[0]->{_framecount};
 }
 
 
@@ -81,8 +58,8 @@ sub compress {
 
     $flag = 1 unless defined $flag;
 
-    if ($self->{_header_Version} < 6) {
-	carp "Compressed SWF is supported by version 6 or higher ";
+    if ($self->Version < 6) {
+	croak "Compressed SWF is supported by version 6 or higher ";
     } else {
 	$self->{_header_CompressedFlag} = $flag;
     }
@@ -121,9 +98,8 @@ SWF::File - Create SWF file.
 
   use SWF::File;
 
-  $swf = SWF::File->new('movie.swf');
+  $swf = SWF::File->new('movie.swf', Version => 4);
   # set header data
-  $swf->Version(4);
   $swf->FrameSize( 0, 0, 1000, 1000);
   $swf->FrameRate(12);
   # set tags
@@ -143,16 +119,12 @@ I<SWF::Element::Tag>s in it.
 
 =over 4
 
-=item SWF::File->new( $filename )
+=item SWF::File->new( $filename, [Version => $version, FrameRate => $framerate, FrameSize => [$x1, $y1, $x2, $y2]] )
 
-Creates a new SWF file.
+Creates a new SWF file.  
+You can set SWF header parameters.
 
-=item $swf->Version( [$version] )
-
-Sets and gets SWF version number. Default is 5.
-You should set it to default if you don't know which version the SWF tags 
-you use are supported with. Neither I<SWF::File> nor I<SWF::Element> support 
-the version control of the specific tags.
+NOTE: Unlike the previous version, SWF version can be set only here.  Default is 5.
 
 =item $swf->FrameRate( [$framerate] )
 
@@ -194,6 +166,6 @@ and/or modify it under the same terms as Perl itself.
 
 L<SWF::BinStream>, L<SWF::Element>
 
-SWF file format and SWF file reference in SWF SDK.
+SWF file format specification from Macromedia.
 
 =cut

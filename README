@@ -11,6 +11,14 @@ This package contains:
 
 See each POD for further information.
 
+NOTE
+
+SWF::File 0.20 or higher is not compatible with the previous version.
+See CHANGES and Element.pod. 
+It is recommended to see SWF file format specifications version 6 
+available from Macromedia site,
+http://www.macromedia.com/software/flash/open/licensing/fileformat/
+
 PREREQUISITE
 
 perl 5.6 or higher
