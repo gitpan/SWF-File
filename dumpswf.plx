@@ -23,9 +23,7 @@ use SWF::Element;
 use SWF::File;
 
 die "This script creates '$ARGV[0]' SWF file. A new file name is needed.\\n" unless \$ARGV[0];
-\$new = SWF::File->new("\$ARGV[0].swf");
 
-# $ARGV[0]  SWF header
 
 START
 
@@ -51,7 +49,9 @@ Frame count = $count
 
 HEADER
     print <<HEADER2;
-\$new->Version($version);
+\$new = SWF::File->new("\$ARGV[0].swf", Version => $version);
+
+# $ARGV[0]  SWF header
 \$new->FrameSize($xmin, $ymin, $xmax, $ymax);
 \$new->FrameRate($rate);
 #\$new->FrameCount($count);

@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.24';
+$VERSION = '0.25';
 
 sub new {
     my $class = shift;
@@ -3827,10 +3827,10 @@ sub unpack {
 sub pack {
     my ($self, $stream) = @_;
 
-    if ($stream->Version >= 6) {
-	$stream->set_UI16($self->EventFlags & 0xffff);
-    } else {
+    if ($stream->Version >= 6) { 
 	$stream->set_UI32($self->EventFlags);
+   } else {
+	$stream->set_UI16($self->EventFlags & 0xffff);
     }
     
     my $tempstream = $stream->sub_stream;

@@ -147,3 +147,9 @@ Revision history for Perl extension SWF::*.
 	  now included in EventFlags.
 	- ActionScript data 'null' and 'undefined' were confused.
       	  Use SWF::Element::ACTIONDATA::UNDEF for 'undefined'. 
+
+0.25 Thu Aug  7 22:00:00 2003
+       SWF::Element
+	- There remained a bug to pack EventFlags. Fixed.
+       dumpswf.plx
+	- The output script cannot set the SWF version correctly. Fixed.
