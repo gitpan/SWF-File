@@ -50,3 +50,7 @@ Revision history for Perl extension SWF::*.
 	- Array::TEXTRECORDARRAY1/2 did not handle TEXTRECORD*::Type0/1
 	  properly. Fixed.
 	- Array::Scalar->configure now can take scalar array reference.
+
+0.06  Thu Jan 10 10:00:00 2002
+       SWF::Element
+	- TEXTRECORD::Type0 wrongly re-re-blessed in unpack(). Fixed.

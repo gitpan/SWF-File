@@ -6,7 +6,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.05';
+$VERSION = '0.06';
 
 sub new {
     my $class = shift;
@@ -340,7 +340,7 @@ _create_class('ACTIONCONDITION', '',
 	      Condition => 'UI16', Actions => 'Array::ACTIONRECORDARRAY');
 _create_class('TEXTRECORD1', '');
 _create_class('TEXTRECORD2', 'TEXTRECORD1');
-_create_class('TEXTRECORD::Type0', ['TEXTRECORD1','TEXTRECORD2'],
+_create_class('TEXTRECORD::Type0', ['','TEXTRECORD1','TEXTRECORD2'],
 	      GlyphEntries => 'Array::GLYPHENTRYARRAY');
 _create_class('GLYPHENTRY', '',
 	      TextGlyphIndex => 'Scalar', TextGlyphAdvance => 'Scalar');
