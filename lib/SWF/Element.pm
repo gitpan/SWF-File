@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.34';
+$VERSION = '0.341';
 
 sub new {
     my $class = shift;
@@ -4506,7 +4506,7 @@ package SWF::Element::ACTIONRECORD::ActionTry;
 	my $finallysize = $stream->get_UI16;
 	$self->FinallySize($finallysize) if $flags & 2;
 	if ($flags & 4) {
-	    $self->CatchRegister($self->get_UI8);
+	    $self->CatchRegister($stream->get_UI8);
 	} else {
 	    $self->CatchName->unpack($stream);
 	}

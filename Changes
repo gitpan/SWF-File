@@ -1,5 +1,9 @@
 Revision history for Perl extension SWF::*.
 
+0.341 Sat Jul 10 11:34:42 2004
+       SWF::Element
+	- Fixed unpack CacheRegister in SWF::Element::ACTIONRECORD::ActionTry.
+
 0.34 Sat Jun 12 12:42:22 2004
        SWF::Element
 	- Fixed wrong style index in DefineMorphShape.
