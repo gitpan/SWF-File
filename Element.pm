@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.29';
+$VERSION = '0.30';
 
 sub new {
     my $class = shift;
@@ -875,8 +875,6 @@ sub _init {
     $self->ScaleY(1);
     $self->RotateSkew0(0);
     $self->RotateSkew1(0);
-    $self->TranslateX(0);
-    $self->TranslateY(0);
 }
 
 sub pack {
@@ -931,9 +929,9 @@ sub unpack {
 sub defined {
     my $self = shift;
 
-    return (defined($self->TranslateX)  or defined($self->TranslateY) or
-	    $self->ScaleX != 1          or $self->ScaleY != 1 or
-	    defined($self->RotateSkew0) or defined($self->RotateSkew1));
+    return (defined($self->TranslateX) or defined($self->TranslateY) or
+	    $self->ScaleX      != 1    or $self->ScaleY      != 1 or
+	    $self->RotateSkew0 != 0    or $self->RotateSkew1 != 0);
 }
 
 sub scale {

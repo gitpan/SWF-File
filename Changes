@@ -1,5 +1,9 @@
 Revision history for Perl extension SWF::*.
 
+0.30 Sat Dec 20 02:22:00 2003
+       SWF::Element
+	- SWF::Element::MATRIX was initialized wrongly since ver.0.28.
+
 0.29 Wed Dec 17 20:30:00 2003
        SWF::Element
 	- Fixed SWF::Element::ACTIONDATA::Double to handle 'infinity' and
