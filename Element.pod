@@ -92,6 +92,7 @@ I<SWF::Element::Scalar> derivatives represent a scalar field which have their ow
   SWF::Element::STRING    - null-terminated string.
   SWF::Element::PSTRING   - pascal type string (string with its length).
   SWF::Element::ID        - 16bit ID of SWF characters (shapes, bitmaps, sounds, etc.)
+  SWF::Element::Depth     - 16bit Depth of SWF characters.
   SWF::Element::BinData   - Binary Data (described later).
 
 =head3 METHODS
@@ -623,14 +624,13 @@ stores the stack top to the register.
 =item ACTIONRECORD::ActionWith
 
 refers to the object on the top of stack for the script
-written in the I<WithBlock>.
+written in the I<CodeSize>.
 
  field      class
- WithBlock  Array::ACTIONBLOCK
+ CodeSize   $[label]
 
-=item Array::ACTIONBLOCK
-
-an array of ACTIONRECORD.
+CodeSize can take the label which indicates the action next to
+the end of the block.
 
 =back
 

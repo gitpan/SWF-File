@@ -4,7 +4,7 @@ use strict;
 use vars qw($VERSION);
 use SWF::BinStream;
 
-$VERSION = '0.04';
+$VERSION = '0.041';
 
 package SWF::BinStream::File::Read;
 
@@ -17,7 +17,7 @@ sub new {
     my ($class, $file, $version) = @_;
 
     my $self = $class->SUPER::new('', \&_readfile, $version);
-    $self->open($file) if $file;
+    $self->open($file) if defined $file;
     $self;
 }
 
@@ -82,7 +82,7 @@ sub new {
 
     my $self = $class->SUPER::new($version);
     $self->SUPER::autoflush(1024, \&_writefile);
-    $self->open($file) if $file;
+    $self->open($file) if defined $file;
     $self;
 }
 

@@ -12,3 +12,7 @@ Makefile.PL
 MANIFEST
 test.pl
 dumpswf.plx
+samples/readme.txt
+samples/sample.plx
+samples/jpg2swf.plx
+samples/img2swf.plx

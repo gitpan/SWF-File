@@ -6,7 +6,7 @@ use SWF::Element;
 use SWF::BinStream::File;
 use Carp;
 
-our $VERSION = '0.03';
+our $VERSION = '0.031';
 our @ISA = ('SWF::BinStream::Write::SubStream');
 
 sub new {
@@ -66,10 +66,11 @@ sub compress {
 }
 
 sub close {
-    my $self = shift;
+    my ($self, $file) = @_;
     my $file_stream = $self->{_parent};
     my $cf = $self->{_header_CompressedFlag};
 
+    $file_stream->open($file) if defined $file;
     $file_stream->set_string( $cf ? 'CWS' : 'FWS' );
     $file_stream->set_UI8($self->Version);
     my $temp = $file_stream->sub_stream;
@@ -84,6 +85,8 @@ sub close {
     $self->SUPER::flush_stream;
     $file_stream->close;
 }
+
+*SWF::File::save = \&close;
 
 sub flush_stream {}
 
@@ -119,7 +122,7 @@ I<SWF::Element::Tag>s in it.
 
 =over 4
 
-=item SWF::File->new( $filename, [Version => $version, FrameRate => $framerate, FrameSize => [$x1, $y1, $x2, $y2]] )
+=item SWF::File->new( [$filename, [Version => $version, FrameRate => $framerate, FrameSize => [$x1, $y1, $x2, $y2]]] )
 
 Creates a new SWF file.  
 You can set SWF header parameters.
@@ -149,7 +152,7 @@ it just before I<$swf-E<gt>close>.
 Makes output SWF compressed. 
 You should set the version to 6 or higher before call it.
 
-=item $swf->close
+=item $swf->close( [$filename] ) / $swf->save( [$filename] )
 
 Saves SWF to the file and closes it.
 

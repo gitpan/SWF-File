@@ -118,10 +118,21 @@ Revision history for Perl extension SWF::*.
        dumpswf.plx
 	- Add comment outputs of frame number.
 
-0.21 Thu Nov 14 00:05:0 2002
+0.21 Thu Nov 14 00:05:00 2002
        SWF::Element
 	- Some flags are not reset properly when the wrong value is set
 	  to the flags field. Fixed.
 	- Revised POD.
        SWF::BinStream, SWF::Parser
 	- Revised POD.
+
+0.22 Tue Mar 30 01:00:00 2003
+       SWF::Element
+	- SWF::Element::MATRIX->rotate was wrong. Fixed.
+	- ActionWith tag was interpreted wrongly. Fixed.
+	- Changed 'Depth' scalar into SWF::Element::Depth object.
+       SWF::File
+	- SWF::File->new can do without a file name now.
+	  The file name should be set in $swf->close/save.
+       Others
+	- Added some samples.

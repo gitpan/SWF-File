@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.21';
+$VERSION = '0.22';
 
 sub new {
     my $class = shift;
@@ -226,6 +226,7 @@ sub _create_flag_accessor {
 # Create subclasses.
 
 _create_class('ID', 'Scalar');
+_create_class('Depth', 'Scalar');
 _create_class('BinData', 'Scalar');
 _create_class('RGB', '',
 	      Red   => '$UI8',
@@ -351,12 +352,12 @@ _create_class('MORPHLINESTYLE', '',
 _create_class('BUTTONRECORD1', '',
 	      ButtonStates => '$UI8',
 	      CharacterID  => 'ID',
-	      PlaceDepth   => '$UI16',
+	      PlaceDepth   => 'Depth',
 	      PlaceMatrix  => 'MATRIX');
 _create_class('BUTTONRECORD2', 'BUTTONRECORD1',
 	      ButtonStates   => '$UI8',
 	      CharacterID    => 'ID',
-	      PlaceDepth     => '$UI16',
+	      PlaceDepth     => 'Depth',
 	      PlaceMatrix    => 'MATRIX',
 	      ColorTransform => 'CXFORMWITHALPHA');
 _create_class('BUTTONCONDACTION', '',
@@ -483,6 +484,22 @@ sub _init {}
 ##########
 
 package SWF::Element::ID;
+
+sub pack {
+    my ($self, $stream) = @_;
+
+    $stream->set_UI16($self->value);
+}
+
+sub unpack {
+    my ($self, $stream) = @_;
+
+    $self->configure($stream->get_UI16);
+}
+
+##########
+
+package SWF::Element::Depth;
 
 sub pack {
     my ($self, $stream) = @_;
@@ -650,8 +667,6 @@ _create_array_class('ACTIONRECORDARRAY',  'Array',  'ACTIONRECORD',
 _create_array_class('ACTIONDATAARRAY', 'Array',  'ACTIONDATA',
                     sub {});
 _create_array_class('STRINGARRAY',     'Array3', 'STRING');
-_create_array_class('ACTIONBLOCK',     'Array::ACTIONRECORDARRAY', 'ACTIONRECORD',
-                    sub {}, sub {});
 _create_array_class('CLIPACTIONRECORDARRAY', 'Array',  'CLIPACTIONRECORD',
                     sub {$_[1]->set_UI32(0)},
                     sub {$_[1]->EventFlags == 0});
@@ -922,11 +937,17 @@ sub rotate {
     my $b = $self->RotateSkew0;
     my $c = $self->RotateSkew1;
     my $d = $self->ScaleY;
-    $self->ScaleX($a*$cos+$c*$sin);
-    $self->RotateSkew0($b*$cos+$d*$sin);
-    $self->RotateSkew1($a*(-$sin)+$b*$cos);
-    $self->ScaleY($b*(-$sin)+$d*$cos);
-    $self;
+    $self->ScaleX($a*$cos-$b*$sin);
+    $self->RotateSkew0($a*$sin+$b*$cos);
+    $self->RotateSkew1($c*$cos-$d*$sin);
+    $self->ScaleY($c*$sin+$d*$cos);
+
+#    $self->ScaleX($a*$cos+$c*$sin);
+#    $self->RotateSkew0($b*$cos+$d*$sin);
+#    $self->RotateSkew1($a*(-$sin)+$b*$cos);
+#    $self->ScaleY($b*(-$sin)+$d*$cos);
+
+     $self;
 }
 
 ##########
@@ -1831,29 +1852,29 @@ _create_tag('DefineSprite', 39, '',
 _create_tag('PlaceObject', 4, '',
 
 	    CharacterID    => 'ID',
-	    Depth          => '$UI16',
+	    Depth          => 'Depth',
 	    Matrix         => 'MATRIX',
 	    ColorTransform => 'CXFORM');
 
 _create_tag('PlaceObject2', 26, '',
 
 	    Flags          => '$UI8',
-	    Depth          => '$UI16',
+	    Depth          => 'Depth',
 	    CharacterID    => 'ID',
 	    Matrix         => 'MATRIX',
 	    ColorTransform => 'CXFORMWITHALPHA',
 	    Ratio          => '$UI16',
 	    Name           => 'STRING',
-	    ClipDepth      => '$UI16',
+	    ClipDepth      => 'Depth',
 	    ClipActions    => 'Array::CLIPACTIONRECORDARRAY');
 
 _create_tag('RemoveObject', 5, '',
 
-	    CharacterID => 'ID', Depth => '$UI16' );
+	    CharacterID => 'ID', Depth => 'Depth' );
 
 _create_tag('RemoveObject2', 28, '',
 
-	    Depth => '$UI16' );
+	    Depth => 'Depth' );
 
 _create_tag('ShowFrame', 1, '');
 
@@ -2230,7 +2251,7 @@ sub unpack {
     $self->ButtonStates($stream->get_UI8);
     return if $self->ButtonStates == 0;
     $self->CharacterID->unpack($stream);
-    $self->PlaceDepth($stream->get_UI16);
+    $self->PlaceDepth->unpack($stream);
     $self->PlaceMatrix->unpack($stream);
 }
 
@@ -2240,7 +2261,7 @@ sub pack {
     $stream->set_UI8($self->ButtonStates);
     return if $self->ButtonStates == 0;
     $self->CharacterID->pack($stream);
-    $stream->set_UI16($self->PlaceDepth);
+    $self->PlaceDepth->pack($stream);
     $self->PlaceMatrix->pack($stream);
 }
 
@@ -2820,15 +2841,13 @@ sub pack {
     Carp::croak "Not enough data to pack ".ref($_[0]);
 }
 
-our $AUTOLOAD;
-
 sub AUTOLOAD { # auto re-bless with proper sub class by specified accessor.
     my $self = shift;
     my ($name, $class);
 
-    return if $AUTOLOAD =~/::DESTROY$/;
+    return if $SWF::Element::TEXTRECORD1::AUTOLOAD =~/::DESTROY$/;
 
-    Carp::croak "No such method: $AUTOLOAD" unless $AUTOLOAD=~/::([A-Z]\w+)$/;
+    Carp::croak "No such method: $SWF::Element::TEXTRECORD1::AUTOLOAD" unless $SWF::Element::TEXTRECORD1::AUTOLOAD=~/::([A-Z]\w+)$/;
     $name = $1;
     $class = ref($self);
     for my $subclass ('SWF::Element::TEXTRECORD::TYPE0', "${class}::TYPE1") {
@@ -3122,7 +3141,7 @@ sub _unpack {
     my $start = $stream->tell;
 
     $self->CharacterID->unpack($stream);
-    $self->Depth($stream->get_UI16);
+    $self->Depth->unpack($stream);
     $self->Matrix->unpack($stream);
     if ($stream->tell < $start + $self->Length) {
 	$self->ColorTransform->unpack($stream);
@@ -3133,7 +3152,7 @@ sub _pack {
     my ($self, $stream)=@_;
 
     $self->CharacterID->pack($stream);
-    $stream->set_UI16($self->Depth);
+    $self->Depth->pack($stream);
     $self->Matrix->pack($stream);
     $self->ColorTransform->pack($stream) if $self->ColorTransform->defined;
 }
@@ -3146,13 +3165,13 @@ sub _unpack {
     my ($self, $stream)=@_;
 
     my $flag = $self->Flags($stream->get_UI8);
-    $self->Depth($stream->get_UI16);
+    $self->Depth         ->unpack($stream);
     $self->CharacterID   ->unpack($stream) if $flag & 2;
     $self->Matrix        ->unpack($stream) if $flag & 4;
     $self->ColorTransform->unpack($stream) if $flag & 8;
     $self->Ratio($stream->get_UI16)        if $flag & 16;
     $self->Name          ->unpack($stream) if $flag & 32;
-    $self->ClipDepth($stream->get_UI16)    if $flag & 64;
+    $self->ClipDepth     ->unpack($stream) if $flag & 64;
 
     if ($flag & 128) {
 	$stream->get_UI16; # skip reserved.
@@ -3173,16 +3192,16 @@ sub _pack {
 	       ((my $ctfm = $self->ColorTransform)->defined) << 3 |
 	       (defined (my $ratio = $self->Ratio) << 4) |
 	       ((my $name = $self->Name)->defined) << 5 |
-	       (defined (my $cdepth = $self->ClipDepth) << 6) |
+	       ((my $cdepth = $self->ClipDepth)->defined) << 6 |
 	       ((my $caction = $self->ClipActions)->defined) << 7) ;
     $stream->set_UI8($flag);
-    $stream->set_UI16($self->Depth);
+    $self->Depth->pack($stream);
     $cid   ->pack($stream)     if $flag & 2;
     $matrix->pack($stream)     if $flag & 4;
     $ctfm  ->pack($stream)     if $flag & 8;
     $stream->set_UI16($ratio)  if $flag & 16;
     $name  ->pack($stream)     if $flag & 32;
-    $stream->set_UI16($cdepth) if $flag & 64;
+    $cdepth->pack($stream)     if $flag & 64;
     if ($flag & 128) {
 	$stream->set_UI16(0);  # Reserved.
 	my $f = 0;
@@ -3466,38 +3485,62 @@ sub _create_action_tag {
 
     my $tagname = shift;
     my $tagno = shift;
-
+    my $tagisa = shift;
+    $tagisa = defined($tagisa) ? "ACTIONRECORD::_$tagisa" :  'ACTIONRECORD';
     $tagname = "Action$tagname";
-    SWF::Element::_create_class("ACTIONRECORD::$tagname", 'ACTIONRECORD', Tag => 'ACTIONTagNumber', LocalLabel => '$', @_);
+    SWF::Element::_create_class("ACTIONRECORD::$tagname", $tagisa, Tag => 'ACTIONTagNumber', LocalLabel => '$', @_);
 
     $actionnumtotag{$tagno} = $tagname;
     $actiontagtonum{$tagname} = $tagno;
 }
 
-_create_action_tag('Unknown',  'Unknown', Data       => 'BinData');  
-_create_action_tag('GotoFrame',     0x81, Frame      => '$UI16');
-_create_action_tag('GetURL',        0x83, 
+_create_action_tag('Unknown',  'Unknown', undef, Data       => 'BinData');  
+_create_action_tag('GotoFrame',     0x81, undef, Frame      => '$UI16');
+_create_action_tag('GetURL',        0x83, undef,
 		   UrlString    => 'STRING',
 		   TargetString => 'STRING' );
-_create_action_tag('WaitForFrame',  0x8A,
+_create_action_tag('WaitForFrame',  0x8A, 'HasSkipCount',
 		   Frame     => '$UI16',
 		   SkipCount => '$UI8' );
-_create_action_tag('SetTarget',     0x8B, TargetName  => 'STRING' );
-_create_action_tag('GotoLabel',     0x8C, Label       => 'STRING' );
-_create_action_tag('WaitForFrame2', 0x8D, SkipCount   => '$UI8' );
-_create_action_tag('Push',          0x96, DataList    => 'Array::ACTIONDATAARRAY' );
-_create_action_tag('Jump',          0x99, BranchOffset=> '$SI16');
-_create_action_tag('GetURL2',       0x9a, Method      => '$UI8');
-_create_action_tag('If',            0x9d, BranchOffset=> '$SI16');
-_create_action_tag('GotoFrame2',    0x9F, PlayFlag    => '$UI8');
-_create_action_tag('ConstantPool',  0x88, 
+_create_action_tag('SetTarget',     0x8B, undef, TargetName  => 'STRING' );
+_create_action_tag('GotoLabel',     0x8C, undef, Label       => 'STRING' );
+_create_action_tag('WaitForFrame2', 0x8D, 'HasSkipCount',
+                   SkipCount   => '$UI8' );
+_create_action_tag('Push',          0x96, undef, DataList    => 'Array::ACTIONDATAARRAY' );
+_create_action_tag('Jump',          0x99, 'HasOffset',
+                   BranchOffset=> '$SI16');
+_create_action_tag('GetURL2',       0x9a, undef, Method      => '$UI8');
+_create_action_tag('If',            0x9d, 'HasOffset',
+                   BranchOffset=> '$SI16');
+_create_action_tag('GotoFrame2',    0x9F, undef, PlayFlag    => '$UI8');
+_create_action_tag('ConstantPool',  0x88, undef,
 		   ConstantPool => 'Array::STRINGARRAY');
-_create_action_tag('DefineFunction',   0x9b, 
+_create_action_tag('DefineFunction',   0x9b, 'HasCodeSize',
 		   FunctionName => 'STRING',
 		   Params       => 'Array::STRINGARRAY',
                    CodeSize     => '$UI16');
-_create_action_tag('StoreRegister', 0x87, Register   => '$UI8');
-_create_action_tag('With',          0x94, WithBlock  => 'Array::ACTIONBLOCK');
+_create_action_tag('StoreRegister', 0x87, undef, Register   => '$UI8');
+_create_action_tag('With',          0x94, 'HasCodeSize',
+                   CodeSize => '$UI16');
+
+##########
+
+package SWF::Element::ACTIONRECORD::_HasSkipCount;
+
+@SWF::Element::ACTIONRECORD::_HasSkipCount::ISA=('SWF::Element::ACTIONRECORD');
+
+##########
+
+package SWF::Element::ACTIONRECORD::_HasOffset;
+
+@SWF::Element::ACTIONRECORD::_HasOffset::ISA=('SWF::Element::ACTIONRECORD');
+
+##########
+
+package SWF::Element::ACTIONRECORD::_HasCodeSize;
+
+@SWF::Element::ACTIONRECORD::_HasCodeSize::ISA=('SWF::Element::ACTIONRECORD::_HasOffset');
+
 ##########
 
 package SWF::Element::ACTIONTagNumber;
@@ -3822,7 +3865,7 @@ sub _label_resolve {
 	while(my ($tell, $obj) = splice(@{$marks{$label}}, 0, 2)) {
 	    if ($obj->[0] eq 'Offset') {
 		my $offset = $dsttell-$tell-2;
-	      Carp::croak "Can't set negative offset for ".ref($obj->[1]) if $offset < 0 and ref($obj->[1]) =~ /WaitForFrame/;
+	      Carp::croak "Can't set negative offset for ".ref($obj->[1]) if $offset < 0 and $obj->[1]->isa('SWF::Element::ACTIONRECORD::_HasCodeSize');
 		my $data = CORE::pack('v', $offset);
 		if ($tell % 1024 == 1023) {
 		    my @data = split //, $data;
@@ -3874,8 +3917,7 @@ sub unpack {
     my $label = 'A';
     for (my $i = 0; $i < @byteoffset; $i++) {
 	my $action = $self->[$i];
-	my $tagname = $action->tag_name;
-	if ($tagname eq 'ActionWaitForFrame' or $tagname eq 'ActionWaitForFrame2') {
+	if ($action->isa('SWF::Element::ACTIONRECORD::_HasSkipCount')) {
 	    my $skip = $action->SkipCount;
 	    my $dst = $self->[$i+$skip];
 	    if (my $l = $dst->LocalLabel) {
@@ -3885,9 +3927,7 @@ sub unpack {
 		$dst->LocalLabel($label);
 		$label++;
 	    }
-	} elsif(   $tagname eq 'ActionJump'
-		or $tagname eq 'ActionIf'
-		or $tagname eq 'ActionDefineFunction') {
+	} elsif($action->isa('SWF::Element::ACTIONRECORD::_HasOffset')) {
 	    my $offset = $action->_Offset;
 	    my $set = $byteoffset[$i+1];
 	    my $dst = $set;
@@ -3914,27 +3954,6 @@ sub unpack {
 	    }
 	}
     }
-}
-
-
-##########
-
-package SWF::Element::Array::ACTIONBLOCK;
-
-sub pack {
-    my $self = shift;
-    my $stream = $_[0];
-
-    my ($actionstream, $labellinks) = $self->_label_resolve(@_);
-    $stream->set_UI16($actionstream->tell);
-    $self->_write_actionstream($stream, $actionstream, $labellinks);
-}
-
-sub unpack {
-    my ($self, $stream) = @_;
-    my $len = $stream->get_UI16;
-
-    $self->SUPER::unpack($stream, $len);
 }
 
 ##########
@@ -4013,6 +4032,25 @@ sub _pack {
 }
 
 *SWF::Element::ACTIONRECORD::ActionDefineFunction::_Offset = \&CodeSize;
+
+##########
+
+package SWF::Element::ACTIONRECORD::ActionWith;
+
+sub _pack {
+    my ($self, $stream) = @_;
+
+    my $offset = $self->CodeSize;
+
+    if ($offset =~ /^[^\d\-]/) {
+	$stream->mark($offset, ['Offset', $self]);
+	$stream->set_UI16(0);
+    } else {
+	$stream->set_UI16($offset);
+    }
+}
+
+*SWF::Element::ACTIONRECORD::ActionWith::_Offset = \&CodeSize;
 
 ####  Video  ####
 ##########

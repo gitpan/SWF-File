@@ -140,7 +140,7 @@ SWF::Parser - Parse SWF file.
 
   use SWF::Parser;
 
-  $parser = SWF::Parser->new( header-callback => \&header, tag-callback => \&tag);
+  $parser = SWF::Parser->new( 'header-callback' => \&header, 'tag-callback' => \&tag);
   # parse binary data
   $parser->parse( $data );
   # or parse SWF file
@@ -155,7 +155,7 @@ file. It splits SWF into a header and tags and calls user subroutines.
 
 =over 4
 
-=item SWF::Parser->new( header-callback => \&headersub, tag-callback => \&tagsub [, stream => $stream])
+=item SWF::Parser->new( 'header-callback' => \&headersub, 'tag-callback' => \&tagsub [, stream => $stream])
 
 Creates a parser.
 The parser calls user subroutines when find SWF header and tags.
