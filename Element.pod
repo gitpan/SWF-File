@@ -323,8 +323,8 @@ represents a clip action triggered by clip event.
  EventFlags6               $            - SWF version>=6 only
    ClipEventKeyPress       (EventFlags6)
    ClipEventDragOut        (EventFlags6)
-   ClipEventDragOver       (EventFlags6)
  EventFlags                $
+   ClipEventDragOver       (EventFlags)
    ClipEventRollOut        (EventFlags)
    ClipEventRollOver       (EventFlags)
    ClipEventReleaseOutside (EventFlags)
@@ -349,7 +349,7 @@ removes the object.
 
  field        class
  CharacterID  ID    - RemoveObject only
- Depth        UI16
+ Depth        $
 
 =item Tag::ShowFrame
 
@@ -372,9 +372,9 @@ sets the background color.
 
 sets the frame label.
 
- field         class
- Name          STRING
- NameAchorFlag $
+ field          class
+ Name           STRING
+ NameAnchorFlag $
 
 =item Tag::Protect
 
@@ -412,7 +412,7 @@ An array of ASSET.
 An ID and name pair of SWF character for export/import.
 
  field   class
- ID      UI16
+ ID      ID
  Name    STRING
 
 =item Tag::EnableDebugger / 2
@@ -587,7 +587,7 @@ goes to the frame specified in the stack.
  Tag      ACTIONTagNumber
  PlayFlag $
 
-=item ACTIORECORD::ActionConstantPool
+=item ACTIONRECORD::ActionConstantPool
 
 defines word set which can be referred by index.
 
@@ -702,10 +702,10 @@ subclass.
 represents a start point and style of new edge.
 
  field       class
- MoveX       $
- MoveY       $
- Fill0Style  $
- Fill1Style  $
+ MoveDeltaX  $
+ MoveDeltaY  $
+ FillStyle0  $
+ FillStyle1  $
  LineStyle   $
  FillStyles  Array::FILLSTYLEARRAY2 / 3  - SHAPERECORD2/3 only
  LineStyles  Array::LINESTYLEARRAY2 / 3  - SHAPERECORD2/3 only
@@ -757,7 +757,7 @@ represents one of the colors making gradient.
 GRADRECORD3 has an alpha channel.
 
  field  class
- Ratio  UI8
+ Ratio  $
  Color  RGB / RGBA
 
 =back
@@ -1244,6 +1244,8 @@ provides a single frame of video data for a video character.
 =head1 LIMITATIONS
 
 Not all tags have been tested yet.
+
+No support of the SWF version control for the tags unless the version affects the tag structure.
 
 Binary block data, such as bitmaps, sounds, and video, are neither decoded nor encoded.
 

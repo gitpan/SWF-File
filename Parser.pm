@@ -3,7 +3,7 @@ package SWF::Parser;
 use strict;
 use vars qw($VERSION);
 
-$VERSION = '0.05';
+$VERSION = '0.051';
 
 use SWF::BinStream;
 use Carp;
@@ -168,7 +168,7 @@ You should define a I<header-callback> subroutine in your script.
 It is called with the following arguments:
 
   $self:       Parser object itself.
-  $signature:  Always 'FWS'.
+  $signature:  'FWS' for normal SWF and 'CWS' for compressed SWF.
   $version:    SWF version No.
   $length:     File length.
   $xmin, $ymin, $xmax, $ymax:

@@ -3,7 +3,7 @@ package SWF::BinStream;
 use strict;
 use vars qw($VERSION);
 
-$VERSION="0.07";
+$VERSION="0.071";
 
 ##
 
@@ -489,6 +489,10 @@ The third arg is SWF version number.  Default is 5.  It is necessary to
 set proper version because some SWF tags change their structure by the 
 version number. 
 
+=item $stream->Version
+
+returns SWF version number of the stream.
+
 =item $stream->add_codec( $codec_name )
 
 Adds stream decoder.
@@ -572,6 +576,10 @@ Creates a write stream.
 One optional argument is SWF version number.  Default is 5.
 It is necessary to set proper version because some SWF tags change 
 their structure by the version number. 
+
+=item $stream->Version
+
+returns SWF version number of the stream.
 
 =item $stream->add_codec( $codec_name )
 

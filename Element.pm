@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.20';
+$VERSION = '0.21';
 
 sub new {
     my $class = shift;
@@ -2502,7 +2502,7 @@ sub _pack {
 
     $self->FontID->pack($stream);
     my $tempstream = $stream->sub_stream;
-    my $flag = $self->FontFlags;
+    my $flag = $self->FontFlags & 0b1010011;
 
     $self->FontName->pack($tempstream);
     $tempstream->set_UI16($glyphcount);
@@ -2704,7 +2704,7 @@ sub _pack {
     $self->FontID   ->pack($stream);
     $self->FontName ->pack($stream);
     my $substream = $stream->sub_stream;
-    my $flag = $self->FontFlags;
+    my $flag = $self->FontFlags & 0b11110;
     $self->CodeTable->pack($substream) and ($flag |= 1);
 
     $stream->set_UI8($flag);
@@ -2937,10 +2937,11 @@ sub _unpack {
 sub _pack {
     my ($self, $stream)=@_;
 
-    my $flag = $self->Flags;
+    my $flag = $self->Flags & 0b101101101111000;
     $flag |= ($self->FontID->defined or defined $self->FontHeight) |
 	     defined ($self->MaxLength)  << 1 |
              ($self->TextColor->defined) << 2 |
+	     ($self->InitialText->defined) << 7 | 
 	     (defined $self->Align
               or defined $self->LeftMargin
               or defined $self->RightMargin
@@ -3166,7 +3167,7 @@ sub _unpack {
 
 sub _pack {
     my ($self, $stream)=@_;
-    my $flag = (($self->Flags & 1) |
+    my $flag = ($self->PlaceFlagMove |
 	       ((my $cid = $self->CharacterID)->defined) << 1 |
 	       ((my $matrix = $self->Matrix)  ->defined) << 2 |
 	       ((my $ctfm = $self->ColorTransform)->defined) << 3 |
@@ -3765,10 +3766,10 @@ sub pack {
     my ($self, $stream) = @_;
 
     if ($stream->Version >= 6) {
-	$stream->set_UI32($self->EventFlags);
-    } else {
-	$stream->set_UI16($self->EventFlags);
+	$stream->set_UI16($self->EventFlags6);
     }
+    $stream->set_UI16($self->EventFlags);
+    
     my $tempstream = $stream->sub_stream;
     $tempstream->set_UI8($self->KeyCode) if $self->ClipEventKeyPress;
     $self->Actions->pack($tempstream);
