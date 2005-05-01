@@ -243,6 +243,9 @@ rotates I<degree> degree.
 represents a color transform value.
 
  field          class
+ Flags          $
+   HasAddTerms  (Flags)
+   HasMultTerms (Flags)
  RedMultTerm    $
  GreenMultTerm  $
  BlueMultTerm   $

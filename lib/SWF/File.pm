@@ -6,7 +6,7 @@ use SWF::Element;
 use SWF::BinStream::File;
 use Carp;
 
-our $VERSION = '0.031';
+our $VERSION = '0.032';
 our @ISA = ('SWF::BinStream::Write::SubStream');
 
 sub new {

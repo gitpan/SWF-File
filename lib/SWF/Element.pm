@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.39';
+$VERSION = '0.40';
 
 sub new {
     my $class = shift;
@@ -255,6 +255,7 @@ _create_class('MATRIX', [''],
 	      RotateSkew0 => '$', RotateSkew1 => '$',
 	      TranslateX  => '$', TranslateY  => '$');
 _create_class('CXFORM', [''],
+	      Flag          => '$',
 	      RedMultTerm   => '$', 
 	      GreenMultTerm => '$',
 	      BlueMultTerm  => '$',
@@ -262,6 +263,7 @@ _create_class('CXFORM', [''],
 	      GreenAddTerm  => '$',
 	      BlueAddTerm   => '$');
 _create_class('CXFORMWITHALPHA', ['CXFORM'],
+	      Flag          => '$',
 	      RedMultTerm   => '$', 
 	      GreenMultTerm => '$',
 	      BlueMultTerm  => '$',
@@ -982,27 +984,25 @@ package SWF::Element::CXFORM;
 sub pack {
     my ($self, $stream)=@_;
     my @param = map $self->$_, $self->element_names;
+    shift @param;
     my $half  = @param>>1;
-    my @add   = @param[0..$half-1];
-    my @mult  = @param[$half..$#param];
-
-    my $hasAdd  = grep defined $_, @param[0..$half-1];
-    my $hasMult = grep defined $_, @param[$half..$#param];
+    my @mult   = @param[0..$half-1];
+    my @add  = @param[$half..$#param];
 
     $stream->flush_bits;
-    if (grep defined $_, @mult) {
-	$stream->set_bits(1,1);
-    } else {
-	$stream->set_bits(0,1);
-	@mult = ();
-    }
     if (grep defined $_, @add) {
 	$stream->set_bits(1,1);
     } else {
 	$stream->set_bits(0,1);
 	@add = ();
     }
-    $stream->set_sbits_list(4, @add, @mult) if @add or @mult;
+    if (grep defined $_, @mult) {
+	$stream->set_bits(1,1);
+    } else {
+	$stream->set_bits(0,1);
+	@mult = ();
+    }
+    $stream->set_sbits_list(4, @mult, @add) if @add or @mult;
 }
 
 sub unpack {
@@ -1011,8 +1011,12 @@ sub unpack {
     $stream->flush_bits;
     my $hasAdd  = $stream->get_bits(1);
     my $hasMult = $stream->get_bits(1);
+
+    $self->Flag($hasAdd | ($hasMult<<1));
+
     my $nbits = $stream->get_bits(4);
     my @names = $self->element_names;
+    shift @names;
     my $half = @names>>1;
 
     if ($hasMult) {
@@ -1026,6 +1030,9 @@ sub unpack {
 	}
     }
 }
+
+SWF::Element::_create_flag_accessor('HasAddTerms', 'Flag', 0);
+SWF::Element::_create_flag_accessor('HasMultTerms', 'Flag', 1);
 
 ##########
 

@@ -1,5 +1,10 @@
 Revision history for Perl extension SWF::*.
 
+0.40 Sun May  1 22:24:58 2005
+       SWF::Element
+	- Wrongly dropped CXFORM/WITHALPHA when HasAddTerms and HasMultTerms are both 0.
+	  						(Thanks to Quyen Phuong)
+
 0.39 Fri Mar 18 00:02:58 2005
        SWF::Element
 	- Fixed wrong glyph shape offsets in DefineFont.(Thanks to Quyen Phuong)
@@ -21,7 +26,7 @@ Revision history for Perl extension SWF::*.
 	- Failed to unpack DefineFont2 if FontFlagsWideOffsets was true. Fixed.
 	- Rewrote 'lookahead_*'.
        SWF::BinStream
-	- 'get_bits' returned a wrong value in a certain case. Restored previous ver.
+	- 'get_bits' returned a wrong value in a certain case. Restored previous version.
 							(Thanks to Leonard Holman)
 
 0.35 Wed Aug 11 09:27:51 2004
