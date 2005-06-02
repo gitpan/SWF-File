@@ -1,5 +1,14 @@
 Revision history for Perl extension SWF::*.
 
+0.41 
+       SWF::Element
+	- mistook TEXTRECORD::TYPE0 and TYPE1 in some case. (Thanks to Quyen Phuong)
+	  TEXTRECORD::TYPE0 and TYPE1 are obsolete and now TEXTRECORD has both
+	  styles and glyph entries.
+	- supports SoundStreamHead/2 for MP3 without LatencySeek. (Thanks to Quyen Phuong)
+       SWF::Parser
+	- 'parsetag' unexpectedly quitted when the stream ran short. Fixed.
+
 0.40 Sun May  1 22:24:58 2005
        SWF::Element
 	- Wrongly dropped CXFORM/WITHALPHA when HasAddTerms and HasMultTerms are both 0.

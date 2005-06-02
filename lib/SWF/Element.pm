@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.40';
+$VERSION = '0.41';
 
 sub new {
     my $class = shift;
@@ -255,7 +255,7 @@ _create_class('MATRIX', [''],
 	      RotateSkew0 => '$', RotateSkew1 => '$',
 	      TranslateX  => '$', TranslateY  => '$');
 _create_class('CXFORM', [''],
-	      Flag          => '$',
+	      Flags         => '$',
 	      RedMultTerm   => '$', 
 	      GreenMultTerm => '$',
 	      BlueMultTerm  => '$',
@@ -263,7 +263,7 @@ _create_class('CXFORM', [''],
 	      GreenAddTerm  => '$',
 	      BlueAddTerm   => '$');
 _create_class('CXFORMWITHALPHA', ['CXFORM'],
-	      Flag          => '$',
+	      Flags         => '$',
 	      RedMultTerm   => '$', 
 	      GreenMultTerm => '$',
 	      BlueMultTerm  => '$',
@@ -380,8 +380,20 @@ _create_class('BUTTONRECORD2', ['BUTTONRECORD1'],
 _create_class('BUTTONCONDACTION', [''],
 	      Condition => '$UI16', Actions => 'Array::ACTIONRECORDARRAY');
 _create_pack('BUTTONCONDACTION');
-_create_class('TEXTRECORD1', ['']);
-_create_class('TEXTRECORD2', ['TEXTRECORD1']);
+_create_class('TEXTRECORD1', [''],
+	      FontID     => 'ID',
+	      TextColor  => 'RGB',
+	      XOffset    => '$SI16',
+	      YOffset    => '$SI16',
+	      TextHeight => '$UI16',
+	      GlyphEntries => 'Array::GLYPHENTRYARRAY');
+_create_class('TEXTRECORD2', ['TEXTRECORD1'],
+	      FontID     => 'ID',
+	      TextColor  => 'RGBA',
+	      XOffset    => '$SI16',
+	      YOffset    => '$SI16',
+	      TextHeight => '$UI16',
+	      GlyphEntries => 'Array::GLYPHENTRYARRAY');
 _create_class('TEXTRECORD::TYPE0', ['','TEXTRECORD1','TEXTRECORD2'],
 	      GlyphEntries => 'Array::GLYPHENTRYARRAY');
 _create_pack('TEXTRECORD::TYPE0');
@@ -1012,7 +1024,7 @@ sub unpack {
     my $hasAdd  = $stream->get_bits(1);
     my $hasMult = $stream->get_bits(1);
 
-    $self->Flag($hasAdd | ($hasMult<<1));
+    $self->Flags($hasAdd | ($hasMult<<1));
 
     my $nbits = $stream->get_bits(4);
     my @names = $self->element_names;
@@ -1031,8 +1043,8 @@ sub unpack {
     }
 }
 
-SWF::Element::_create_flag_accessor('HasAddTerms', 'Flag', 0);
-SWF::Element::_create_flag_accessor('HasMultTerms', 'Flag', 1);
+SWF::Element::_create_flag_accessor('HasAddTerms', 'Flags', 0);
+SWF::Element::_create_flag_accessor('HasMultTerms', 'Flags', 1);
 
 ##########
 
@@ -2940,7 +2952,6 @@ sub pack {
     my ($nglyphmax, $nglyphbits, $nadvancemax, $nadvancebits, $g, $a) = (0) x 6;
 
     for my $element (@$self) {
-	next unless ($element->isa('SWF::Element::TEXTRECORD::TYPE0'));
 	for my $entry (@{$element->GlyphEntries}) {
 	    $g=$entry->GlyphIndex;
 	    $a=$entry->GlyphAdvance;
@@ -2985,54 +2996,36 @@ package SWF::Element::TEXTRECORD1;
 sub unpack {
     my $self = shift;
     my $stream = shift;
-    my $flags = $stream->get_UI8;
 
-    if ($flags) {
-# If upper nibble of $flags is 8, $self is TEXTRECORDn::TYPE1.
-# (It is not enough by checking MSB...(?))
-	bless $self, ($flags>>4 == 8) ? ref($self).'::TYPE1' : 'SWF::Element::TEXTRECORD::TYPE0';
-	$self->unpack($stream, $flags, @_);
-    } else {
-	bless $self, 'SWF::Element::TEXTRECORD::End';
+    my $flags = $stream->get_UI8;
+    if ($flags == 0) {
+	return bless $self, 'SWF::Element::TEXTRECORD::End';
     }
+    $self->FontID   ->unpack($stream)    if ($flags & 8);
+    $self->TextColor->unpack($stream)    if ($flags & 4);
+    $self->XOffset($stream->get_SI16)    if ($flags & 1);
+    $self->YOffset($stream->get_SI16)    if ($flags & 2);
+    $self->TextHeight($stream->get_UI16) if ($flags & 8);
+    $self->GlyphEntries->unpack($stream, @_);
 }
 
 sub pack {
-    Carp::croak "Not enough data to pack ".ref($_[0]);
-}
-
-sub AUTOLOAD { # auto re-bless with proper sub class by specified accessor.
     my $self = shift;
-    my ($name, $class);
-
-    return if $SWF::Element::TEXTRECORD1::AUTOLOAD =~/::DESTROY$/;
-
-    Carp::croak "No such method: $SWF::Element::TEXTRECORD1::AUTOLOAD" unless $SWF::Element::TEXTRECORD1::AUTOLOAD=~/::([A-Z]\w+)$/;
-    $name = $1;
-    $class = ref($self);
-    for my $subclass ('SWF::Element::TEXTRECORD::TYPE0', "${class}::TYPE1") {
-	$class=$subclass, last if $subclass->element_type($name);
-    }
-    Carp::croak "Element '$name' is NOT in $class " if $class eq ref($self);
-
-    bless $self, $class;
-    $self->$name(@_);
-}
-
-
-##########
-package SWF::Element::Array::GLYPHENTRYARRAY;
-
-sub unpack {
-    my $self   = shift;
     my $stream = shift;
-    my $count  = shift;
+    my ($flags)=0x80;
 
-    while (--$count>=0) {
-	my $element = $self->new_element;
-	$element->unpack($stream, @_);
-	push @$self, $element;
-    }
+    $flags|=8 if $self->FontID->defined or defined $self->TextHeight;
+    $flags|=4 if $self->TextColor->defined;
+    $flags|=1 if defined $self->XOffset;
+    $flags|=2 if defined $self->YOffset;
+    $stream->set_UI8($flags);
+
+    $self->FontID->pack($stream)  if ($flags & 8);
+    $self->TextColor->pack($stream) if ($flags & 4);
+    $stream->set_SI16($self->XOffset) if ($flags & 1);
+    $stream->set_SI16($self->YOffset) if ($flags & 2);
+    $stream->set_UI16($self->TextHeight) if ($flags & 8);
+    $self->GlyphEntries->pack($stream, @_);
 }
 
 ##########
@@ -3057,6 +3050,8 @@ sub pack {
 
 package SWF::Element::TEXTRECORD1::TYPE1;
 
+=pod obsolete
+
 sub unpack {
     my ($self, $stream, $flags)=@_;
 
@@ -3066,6 +3061,8 @@ sub unpack {
     $self->YOffset($stream->get_SI16)    if ($flags & 2);
     $self->TextHeight($stream->get_UI16) if ($flags & 8);
 }
+
+=cut
 
 sub pack {
     my ($self, $stream)=@_;
@@ -3245,7 +3242,7 @@ sub _unpack {
 
     $self->Flags($stream->get_UI16);
     $self->StreamSoundSampleCount($stream->get_UI16);
-    $self->LatencySeek($stream->get_SI16) if $self->StreamSoundCompression == 2;
+    $self->LatencySeek($stream->get_SI16) if $self->Length == 6;
 }
 
 sub _pack {
@@ -3253,7 +3250,7 @@ sub _pack {
 
     $stream->set_UI16($self->Flags);
     $stream->set_UI16($self->StreamSoundSampleCount);
-    $stream->set_SI16($self->LatencySeek) if $self->StreamSoundCompression == 2;
+    $stream->set_SI16($self->LatencySeek) if $self->StreamSoundCompression == 2 and defined($self->LatencySeek);
 }
 
 

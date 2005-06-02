@@ -255,6 +255,20 @@ represents a color transform value.
  BlueAddTerm    $
  AlphaAddTerm   $  - CXFORMWITHALPHA only.
 
+Usually it is not necessary to set HasAddTerms and HasMultTerms.
+They are set whether the terms are defined.
+When you want to reset CXFORM, reset both flags without defining any term as follows:
+
+ $cxform = SWF::Element::CXFORM->new;
+ $cxform->HasAddTerms(0);
+ $cxform->HasMultTerms(0);
+
+or
+
+ $cxform = SWF::Element::CXFORM->new;
+ $cxform->Flags(0);
+
+
 =back
 
 =head3 SWF Tags
