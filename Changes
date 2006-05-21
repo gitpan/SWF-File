@@ -1,6 +1,12 @@
 Revision history for Perl extension SWF::*.
 
-0.41 
+0.42 Sun May 21 22:06:02 2006
+       SWF::Element
+	- Tag::BitmapLossless/2 now has always a long tag header to avoid a player bug.
+                                                            (Thanks to Gordon McCreight)
+	- Fixed wrong unpacking font codes.
+
+0.41 Fri Jun  3 00:30:00 2005
        SWF::Element
 	- mistook TEXTRECORD::TYPE0 and TYPE1 in some case. (Thanks to Quyen Phuong)
 	  TEXTRECORD::TYPE0 and TYPE1 are obsolete and now TEXTRECORD has both

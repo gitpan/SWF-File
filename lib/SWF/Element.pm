@@ -8,7 +8,7 @@ use vars qw($VERSION @ISA);
 use Carp;
 use SWF::BinStream;
 
-$VERSION = '0.41';
+$VERSION = '0.42';
 
 sub new {
     my $class = shift;
@@ -1727,6 +1727,7 @@ sub _create_pack {
 
 @SWF::Element::Tag::ValidInSprite::ISA = ('SWF::Element::Tag');
 @SWF::Element::Tag::ActionContainer::ISA  = ('SWF::Element::Tag');
+@SWF::Element::Tag::AlwaysLongHeader::ISA  = ('SWF::Element::Tag');
 
 ##  Shapes  ##
 
@@ -1783,7 +1784,7 @@ _create_tag('DefineBitsJPEG3', 35, ['DefineBitsJPEG2'],
 	    JPEGData        => 'BinData',
 	    BitmapAlphaData => 'BinData');
 
-_create_tag('DefineBitsLossless', 20, ['LossLessBitmap'],
+_create_tag('DefineBitsLossless', 20, ['LossLessBitmap', 'AlwaysLongHeader'],
 
 	    CharacterID          => 'ID',
 	    BitmapFormat         => '$UI8',
@@ -2107,7 +2108,7 @@ sub pack {
     $self->_pack($substream);
     my $header = $self->tag_number<<6;
     my $len = $substream->tell;
-    if ($len >= 0x3f) {
+    if ($len >= 0x3f or $self->is_tagtype('AlwaysLongHeader')) {
 	$header |= 0x3f;
 	$stream->set_UI16($header);
 	$stream->set_UI32($len);
@@ -2755,7 +2756,7 @@ sub unpack {
 	$glyphcount*=2;
 	$templete='v*';
     } else {
-	$templete='c*';
+	$templete='C*';
     }
 
     @$self=unpack($templete,$stream->get_string($glyphcount));
